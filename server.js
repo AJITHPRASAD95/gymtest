@@ -4,22 +4,25 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Use environment variable for PORT
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('public')); // Serves static files from the 'public' directory
 
-// MongoDB connection
-// Use process.env.MONGODB_URI for MongoDB Atlas connection string
-// Fallback to local connection for development if MONGODB_URI is not set
-mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://ajithtest95:ajith%40123@cluster0.n3qvh.mongodb.net/blackswan_laundry?retryWrites=true&w=majority', {
+// MongoDB Atlas connection string
+// IMPORTANT: In a production environment, store this connection string securely (e.g., in environment variables)
+const mongoAtlasUri = 'mongodb+srv://ajithtest95:ajith%40123@cluster0.n3qvh.mongodb.net/gym_management?retryWrites=true&w=majority';
+
+// MongoDB Connection - NOW USING ATLAS URI
+mongoose.connect(mongoAtlasUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('MongoDB connected successfully!'))
-.catch(err => console.error('MongoDB connection error:', err));
+.then(() => console.log('MongoDB Atlas Connected Successfully!')) // Confirmation message
+.catch(err => console.error('MongoDB Atlas connection error:', err)); // Error handling for connection
+
 
 // Schemas
 const branchSchema = new mongoose.Schema({
@@ -39,18 +42,18 @@ const memberSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   monthlyFee: Number,
   emergencyContact: String,
-  createdAt: { type: Date, default: Date.now },
-  role: { type: String, enum: ['user', 'admin'], default: 'user' } // Added role for Flutter app
+  fingerprintId: { type: Number, unique: true, sparse: true }, // NEW: Fingerprint ID (1-999), unique and optional
+  createdAt: { type: Date, default: Date.now }
 });
 
 const paymentSchema = new mongoose.Schema({
   memberId: { type: mongoose.Schema.Types.ObjectId, ref: 'Member' },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   amount: Number,
-  paymentDate: { type: Date, default: Date.now },
+  paymentDate: { type: Date }, // No default, set when paid
   paymentMonth: String, // Format: "YYYY-MM"
-  paymentStatus: { type: String, enum: ['paid', 'pending', 'overdue'], default: 'pending' },
-  paymentMethod: String,
+  paymentStatus: { type: String, enum: ['paid', 'pending', 'overdue', 'non_payable'], default: 'pending' },
+  paymentMethod: String, // NEW: Field for UPI, Cash, etc.
   notes: String,
   createdAt: { type: Date, default: Date.now }
 });
@@ -64,15 +67,29 @@ const attendanceSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// New Workout Schema for Flutter app
-const workoutSchema = new mongoose.Schema({
-  memberId: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
-  activity: { type: String, required: true },
-  durationMinutes: { type: Number, required: true },
-  caloriesBurned: { type: Number, required: true },
-  workoutDate: { type: Date, default: Date.now },
-  notes: String,
+// NEW: Expense Schema
+const expenseSchema = new mongoose.Schema({
+  reason: { type: String, required: true },
+  amount: { type: Number, required: true },
+  date: { type: Date, default: Date.now },
+  branchId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Branch',
+    required: false // Expenses can be branch-specific or general (admin)
+  },
   createdAt: { type: Date, default: Date.now }
+});
+
+// User Schema for authentication and roles
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true }, // In a real app, hash this password (e.g., with bcrypt)
+  role: { type: String, enum: ['admin', 'manager'], required: true }, // 'admin' for full access, 'manager' for branch-specific
+  branchId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Branch',
+    required: function() { return this.role === 'manager'; } // Managers must be associated with a branch
+  }
 });
 
 
@@ -81,114 +98,249 @@ const Branch = mongoose.model('Branch', branchSchema);
 const Member = mongoose.model('Member', memberSchema);
 const Payment = mongoose.model('Payment', paymentSchema);
 const Attendance = mongoose.model('Attendance', attendanceSchema);
-const Workout = mongoose.model('Workout', workoutSchema); // New Workout Model
+const User = mongoose.model('User', userSchema); // User Model
+const Expense = mongoose.model('Expense', expenseSchema); // NEW: Expense Model
 
-// Routes
 
-// Dashboard Analytics
-app.get('/api/dashboard', async (req, res) => {
+// Authentication Middleware
+// This middleware simulates authentication by checking custom headers
+// In a real application, this would involve JWTs or session management
+const authenticateUser = (req, res, next) => {
+  // Allow the login route to proceed without authentication headers
+  if (req.path === '/api/login') {
+    return next();
+  }
+
+  // For all other routes, expect user info in headers
+  const username = req.headers['x-username'];
+  const role = req.headers['x-role'];
+  const branchId = req.headers['x-branch-id'];
+
+  if (username && role) {
+    req.user = {
+      username: username,
+      role: role,
+      branchId: branchId || null // Branch ID is optional for admin, required for manager
+    };
+    return next();
+  }
+
+  // If no authentication headers are present, deny access
+  return res.status(401).json({ message: 'Authentication required' });
+};
+
+// Authorization Middleware
+// This middleware checks if the authenticated user has the required role(s)
+const authorizeUser = (roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
+  }
+  next();
+};
+
+app.use(authenticateUser); // Apply authentication middleware to all routes (except /api/login)
+
+// Login Route (Simplified for demonstration)
+// In a real app, you'd use bcrypt for password hashing and generate a JWT
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
   try {
-    const { month, branchId } = req.query; // Get month and branchId from query
-    
-    // Base match for payments and attendance
-    let paymentMatch = { paymentStatus: 'paid' };
-    let pendingPaymentMatch = { paymentStatus: 'pending' };
-    let attendanceMatch = {};
-    let memberMatch = {};
-
-    if (month) {
-      paymentMatch.paymentMonth = month;
-      pendingPaymentMatch.paymentMonth = month;
+    const user = await User.findOne({ username });
+    // Simple password comparison (DO NOT use in production)
+    if (!user || user.password !== password) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
-    if (branchId) {
-      paymentMatch.branchId = new mongoose.Types.ObjectId(branchId);
-      pendingPaymentMatch.branchId = new mongoose.Types.ObjectId(branchId);
-      attendanceMatch.branchId = new mongoose.Types.ObjectId(branchId);
-      memberMatch.branchId = new mongoose.Types.ObjectId(branchId);
-    }
-
-    // Total revenue this month (filtered by month and branch)
-    const currentMonthRevenue = await Payment.aggregate([
-      { $match: paymentMatch },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    
-    // Pending payments this month (filtered by month and branch)
-    const pendingPayments = await Payment.aggregate([
-      { $match: pendingPaymentMatch },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    
-    // Monthly revenue trend (filtered by branch)
-    let monthlyRevenuePipeline = [
-      { $match: { paymentStatus: 'paid' } },
-    ];
-    if (branchId) {
-      monthlyRevenuePipeline.push({ $match: { branchId: new mongoose.Types.ObjectId(branchId) } });
-    }
-    monthlyRevenuePipeline.push(
-      { $group: { 
-        _id: '$paymentMonth', 
-        revenue: { $sum: '$amount' },
-        count: { $sum: 1 }
-      }},
-      { $sort: { _id: 1 } },
-      { $limit: 12 } // Limit to last 12 months for trend
-    );
-    const monthlyRevenue = await Payment.aggregate(monthlyRevenuePipeline);
-
-    // Branch wise members (not filtered by month, but can be filtered by branch if branchId is provided)
-    let branchMembersPipeline = [];
-    if (branchId) {
-        branchMembersPipeline.push({ $match: { _id: new mongoose.Types.ObjectId(branchId) } });
-    }
-    branchMembersPipeline.push(
-        { $lookup: { from: 'members', localField: '_id', foreignField: 'branchId', as: 'members' } },
-        { $unwind: { path: '$members', preserveNullAndEmptyArrays: true } }, // Use preserveNullAndEmptyArrays to include branches with no members
-        { $group: {
-            _id: '$_id',
-            branchName: { $first: '$name' },
-            totalMembers: { $sum: { $cond: ['$members', 1, 0] } }, // Count members only if they exist
-            activeMembers: { $sum: { $cond: [{ $and: ['$members', '$members.isActive'] }, 1, 0] } }
-        }},
-        { $sort: { branchName: 1 } }
-    );
-    const branchMembers = await Branch.aggregate(branchMembersPipeline);
-
-    // Today's attendance (filtered by branch)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    attendanceMatch.createdAt = { $gte: today };
-    const todayAttendance = await Attendance.countDocuments(attendanceMatch);
-    
-    // Total active members (filtered by branch)
-    memberMatch.isActive = true;
-    const totalActiveMembers = await Member.countDocuments(memberMatch);
-    
+    // Return user role and branchId for frontend to store
     res.json({
-      currentMonthRevenue: currentMonthRevenue[0]?.total || 0,
-      pendingPayments: pendingPayments[0]?.total || 0,
-      monthlyRevenue,
-      branchMembers,
-      todayAttendance,
-      totalActiveMembers
+      message: 'Login successful',
+      user: {
+        username: user.username,
+        role: user.role,
+        branchId: user.branchId ? user.branchId.toString() : null // Convert ObjectId to string
+      }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Branch routes
-app.get('/api/branches', async (req, res) => {
+
+// Dashboard Analytics - PROTECTED
+// Admins can see all, managers only their branch
+app.get('/api/dashboard', authorizeUser(['admin', 'manager']), async (req, res) => {
   try {
-    const branches = await Branch.find();
-    res.json(branches);
+    const { month, branchId } = req.query;
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+
+    // Base match criteria for various aggregations
+    let currentMonthRevenueMatch = { paymentStatus: 'paid' };
+    let pendingPaymentMatch = { paymentStatus: 'pending' };
+    let monthlyRevenuePipelineMatch = { paymentStatus: 'paid' };
+    let attendanceMatch = {};
+    let memberMatch = {};
+    let todayNewMembersMatch = {};
+    let branchMemberAggregateMatch = {};
+    let expenseMatch = {}; // NEW: Expense match criteria
+
+    // Apply branch filtering based on user role
+    if (userRole === 'manager' && userBranchId) {
+        currentMonthRevenueMatch.branchId = new mongoose.Types.ObjectId(userBranchId);
+        pendingPaymentMatch.branchId = new mongoose.Types.ObjectId(userBranchId);
+        attendanceMatch.branchId = new mongoose.Types.ObjectId(userBranchId);
+        memberMatch.branchId = new mongoose.Types.ObjectId(userBranchId);
+        todayNewMembersMatch.branchId = new mongoose.Types.ObjectId(userBranchId);
+        branchMemberAggregateMatch._id = new mongoose.Types.ObjectId(userBranchId);
+        monthlyRevenuePipelineMatch.branchId = new mongoose.Types.ObjectId(userBranchId);
+        expenseMatch.branchId = new mongoose.Types.ObjectId(userBranchId); // NEW
+    } else if (branchId) {
+        currentMonthRevenueMatch.branchId = new mongoose.Types.ObjectId(branchId);
+        pendingPaymentMatch.branchId = new mongoose.Types.ObjectId(branchId);
+        attendanceMatch.branchId = new mongoose.Types.ObjectId(branchId);
+        memberMatch.branchId = new mongoose.Types.ObjectId(branchId);
+        todayNewMembersMatch.branchId = new mongoose.Types.ObjectId(branchId);
+        branchMemberAggregateMatch._id = new mongoose.Types.ObjectId(branchId);
+        monthlyRevenuePipelineMatch.branchId = new mongoose.Types.ObjectId(branchId);
+        expenseMatch.branchId = new mongoose.Types.ObjectId(branchId); // NEW
+    }
+
+    // Apply month filtering if provided
+    if (month) {
+      currentMonthRevenueMatch.paymentMonth = month;
+      pendingPaymentMatch.paymentMonth = month;
+
+      // NEW: Add date filtering for expenses based on month
+      const [year, monthNum] = month.split('-');
+      const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+      const endDate = new Date(parseInt(year), parseInt(monthNum), 0); // Last day of the month
+      expenseMatch.date = { $gte: startDate, $lte: endDate };
+    }
+
+
+    // Calculate Current Month Revenue
+    const currentMonthRevenueResult = await Payment.aggregate([
+      { $match: currentMonthRevenueMatch },
+      { $group: {
+          _id: null,
+          total: { $sum: '$amount' },
+          totalUPI: { $sum: { $cond: [{ $eq: ['$paymentMethod', 'UPI'] }, '$amount', 0] } }, // NEW
+          totalCash: { $sum: { $cond: [{ $eq: ['$paymentMethod', 'Cash'] }, '$amount', 0] } } // NEW
+      }}
+    ]);
+    const totalRevenue = currentMonthRevenueResult.length > 0 ? currentMonthRevenueResult[0].total : 0;
+    const totalRevenueUPI = currentMonthRevenueResult.length > 0 ? currentMonthRevenueResult[0].totalUPI : 0; // NEW
+    const totalRevenueCash = currentMonthRevenueResult.length > 0 ? currentMonthRevenueResult[0].totalCash : 0; // NEW
+
+
+    // Calculate Pending Payments
+    const pendingPayments = await Payment.aggregate([
+      { $match: pendingPaymentMatch },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+
+    // NEW: Calculate Total Expenses for the current month
+    const totalExpensesResult = await Expense.aggregate([
+      { $match: expenseMatch },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const totalExpenses = totalExpensesResult.length > 0 ? totalExpensesResult[0].total : 0;
+
+    // NEW: Calculate Net Revenue
+    const netRevenue = totalRevenue - totalExpenses;
+
+    // Calculate Monthly Revenue Trend
+    let monthlyRevenuePipeline = [
+      { $match: monthlyRevenuePipelineMatch },
+    ];
+    if (userRole === 'manager' && userBranchId) {
+        monthlyRevenuePipeline.push({ $match: { branchId: new mongoose.Types.ObjectId(userBranchId) } });
+    } else if (branchId) {
+      monthlyRevenuePipeline.push({ $match: { branchId: new mongoose.Types.ObjectId(branchId) } });
+    }
+    monthlyRevenuePipeline.push(
+      { $group: {
+        _id: '$paymentMonth',
+        revenue: { $sum: '$amount' },
+        count: { $sum: 1 }
+      }},
+      { $sort: { _id: 1 } },
+      { $limit: 12 }
+    );
+    const monthlyRevenue = await Payment.aggregate(monthlyRevenuePipeline);
+
+    // Calculate Branch-wise Members
+    let branchMembersPipeline = [];
+    if (Object.keys(branchMemberAggregateMatch).length > 0) {
+        branchMembersPipeline.push({ $match: branchMemberAggregateMatch });
+    }
+    branchMembersPipeline.push(
+        { $lookup: { from: 'members', localField: '_id', foreignField: 'branchId', as: 'members' } },
+        { $unwind: { path: '$members', preserveNullAndEmptyArrays: true } },
+        { $group: {
+            _id: '$_id',
+            branchName: { $first: '$name' },
+            totalMembers: { $sum: { $cond: ['$members', 1, 0] } },
+            activeMembers: { $sum: { $cond: [{ $and: ['$members', '$members.isActive'] }, 1, 0] } }
+        }},
+        { $sort: { branchName: 1 } }
+    );
+    const branchMembers = await Branch.aggregate(branchMembersPipeline);
+
+    // Calculate Today's Attendance
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    attendanceMatch.createdAt = { $gte: today };
+    const todayAttendance = await Attendance.countDocuments(attendanceMatch);
+
+    // Calculate Total Active Members
+    memberMatch.isActive = true;
+    const totalActiveMembers = await Member.countDocuments(memberMatch);
+
+    // Calculate Today's New Members
+    todayNewMembersMatch.joinDate = { $gte: today };
+    const todayNewMembers = await Member.countDocuments(todayNewMembersMatch);
+
+    res.json({
+      totalRevenue: totalRevenue,
+      totalPendingPayments: pendingPayments.length > 0 ? pendingPayments[0].total : 0,
+      monthlyRevenue: monthlyRevenue,
+      branchMembers: branchMembers,
+      todayAttendance: todayAttendance,
+      totalActiveMembers: totalActiveMembers,
+      todayNewMembers: todayNewMembers,
+      totalExpenses: totalExpenses, // NEW
+      netRevenue: netRevenue,       // NEW
+      totalRevenueUPI: totalRevenueUPI, // NEW
+      totalRevenueCash: totalRevenueCash // NEW
+    });
+
   } catch (error) {
+    console.error('Error in dashboard GET API:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/branches', async (req, res) => {
+
+// Branch Routes - PROTECTED (Admin only for creation/deletion, manager can view)
+// Get all branches - PROTECTED (Admin and Manager can view)
+app.get('/api/branches', authorizeUser(['admin', 'manager']), async (req, res) => {
+  try {
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+    let query = {};
+    if (userRole === 'manager' && userBranchId) {
+      query._id = userBranchId; // Managers can only see their own branch
+    }
+    const branches = await Branch.find(query);
+    res.json(branches);
+  } catch (error) {
+    console.error('Error in branches GET API:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add new branch - PROTECTED (Admin only)
+app.post('/api/branches', authorizeUser(['admin']), async (req, res) => {
   try {
     const branch = new Branch(req.body);
     await branch.save();
@@ -198,211 +350,579 @@ app.post('/api/branches', async (req, res) => {
   }
 });
 
-// Member routes
-app.get('/api/members', async (req, res) => {
+// Update branch - PROTECTED (Admin only)
+app.put('/api/branches/:id', authorizeUser(['admin']), async (req, res) => {
   try {
-    const { branchId, status, email } = req.query; // Added email for login
+    const branch = await Branch.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!branch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+    res.json(branch);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete branch - PROTECTED (Admin only)
+app.delete('/api/branches/:id', authorizeUser(['admin']), async (req, res) => {
+  try {
+    const branch = await Branch.findByIdAndDelete(req.params.id);
+    if (!branch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+    res.status(204).send(); // No content for successful deletion
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+// Member Routes - PROTECTED
+// Get all members - PROTECTED (Admins can view all, Managers view their branch)
+app.get('/api/members', authorizeUser(['admin', 'manager']), async (req, res) => {
+  try {
+    const { branchId, status, name } = req.query;
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
     let query = {};
-    
-    if (branchId) query.branchId = branchId;
+
+    if (userRole === 'manager' && userBranchId) {
+      query.branchId = userBranchId; // Managers can only see members from their branch
+    } else if (branchId) {
+      query.branchId = branchId; // Admins can filter by any branch
+    }
+
     if (status) query.isActive = status === 'active';
-    if (email) query.email = email; // Filter by email for login
+    if (name) {
+      query.name = { $regex: name, $options: 'i' }; // Case-insensitive regex search
+    }
 
     const members = await Member.find(query).populate('branchId', 'name location');
     res.json(members);
   } catch (error) {
+    console.error('Error in members GET API:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/members', async (req, res) => {
+// Get a single member by ID - PROTECTED
+app.get('/api/members/:id', authorizeUser(['admin', 'manager']), async (req, res) => {
   try {
-    const member = new Member(req.body);
-    await member.save();
-    res.status(201).json(member);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.put('/api/members/:id/status', async (req, res) => {
-  try {
-    const { isActive } = req.body;
-    const member = await Member.findByIdAndUpdate(
-      req.params.id,
-      { isActive },
-      { new: true }
-    );
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+    const member = await Member.findById(req.params.id).populate('branchId', 'name location');
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    // Managers can only access members in their own branch
+    if (userRole === 'manager' && userBranchId && member.branchId.toString() !== userBranchId.toString()) {
+      return res.status(403).json({ message: 'Forbidden: You can only access members in your assigned branch' });
+    }
     res.json(member);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Payment routes
-app.get('/api/payments', async (req, res) => {
+// Add new member - PROTECTED (Admins and Managers)
+app.post('/api/members', authorizeUser(['admin', 'manager']), async (req, res) => {
   try {
-    const { branchId, status, month, memberName } = req.query; // Added memberName
-    let query = {};
-    
-    if (branchId) query.branchId = branchId;
-    if (status) query.paymentStatus = status;
-    if (month) query.paymentMonth = month;
+    const memberData = req.body;
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
 
-    // New: Filter by member name
-    if (memberName) {
-      const members = await Member.find({ name: { $regex: memberName, $options: 'i' } }).select('_id');
-      const memberIds = members.map(member => member._id);
-      query.memberId = { $in: memberIds };
+    // Managers can only add members to their assigned branch
+    if (userRole === 'manager' && userBranchId) {
+      if (!memberData.branchId || memberData.branchId !== userBranchId) {
+        return res.status(403).json({ message: 'Forbidden: Managers can only add members to their assigned branch.' });
+      }
     }
-    
-    const payments = await Payment.find(query)
-      .populate('memberId', 'name email phone')
-      .populate('branchId', 'name location')
-      .sort({ createdAt: -1 });
-    res.json(payments);
+    // For admin, ensure branchId is provided
+    if (userRole === 'admin' && !memberData.branchId) {
+      return res.status(400).json({ message: 'Branch ID is required for admin to add a member.' });
+    }
+
+    const member = new Member(memberData);
+    await member.save();
+    res.status(201).json(member);
+  } catch (error) {
+    console.error('Error in members POST API:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Edit Member Details - PROTECTED (Admins and Managers)
+app.put('/api/members/:id', authorizeUser(['admin', 'manager']), async (req, res) => {
+  try {
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+    const memberId = req.params.id;
+    const updateData = req.body;
+
+    const memberToUpdate = await Member.findById(memberId);
+    if (!memberToUpdate) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    // Managers can only update members in their own branch
+    if (userRole === 'manager' && userBranchId && memberToUpdate.branchId.toString() !== userBranchId.toString()) {
+      return res.status(403).json({ message: 'Forbidden: You can only update members in your assigned branch' });
+    }
+    // Prevent managers from changing branchId
+    if (userRole === 'manager' && updateData.branchId && updateData.branchId !== memberToUpdate.branchId.toString()) {
+      return res.status(403).json({ message: 'Forbidden: Managers cannot change a member\'s branch.' });
+    }
+    // Admin must provide branchId if changing it
+    if (userRole === 'admin' && updateData.branchId && !mongoose.Types.ObjectId.isValid(updateData.branchId)) {
+      return res.status(400).json({ message: 'Invalid Branch ID provided.' });
+    }
+
+
+    const member = await Member.findByIdAndUpdate(memberId, updateData, { new: true });
+    res.json(member);
+  } catch (error) {
+    console.error('Error in members PUT API:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle Member Status (Active/Inactive) - PROTECTED (Admins and Managers)
+app.put('/api/members/:id/toggle-status', authorizeUser(['admin', 'manager']), async (req, res) => {
+  try {
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+    const memberId = req.params.id;
+    const { isActive } = req.body; // Expect `isActive` boolean in body
+
+    const memberToUpdate = await Member.findById(memberId);
+    if (!memberToUpdate) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    // Managers can only update members in their own branch
+    if (userRole === 'manager' && userBranchId && memberToUpdate.branchId.toString() !== userBranchId.toString()) {
+      return res.status(403).json({ message: 'Forbidden: You can only update members in your assigned branch' });
+    }
+
+    const member = await Member.findByIdAndUpdate(
+      memberId,
+      { isActive },
+      { new: true }
+    );
+
+    // NEW LOGIC: Update payment status based on member's active status
+    if (isActive === false) {
+      // If member is made inactive, mark all their pending/overdue payments as non_payable
+      await Payment.updateMany(
+        { memberId: memberId, paymentStatus: { $in: ['pending', 'overdue'] } },
+        { $set: { paymentStatus: 'non_payable' } }
+      );
+      console.log(`Member ${member.name} made inactive. Associated pending/overdue payments marked as non_payable.`);
+    } else {
+      // If member is made active, revert any non_payable payments back to pending
+      await Payment.updateMany(
+        { memberId: memberId, paymentStatus: 'non_payable' },
+        { $set: { paymentStatus: 'pending' } }
+      );
+      console.log(`Member ${member.name} made active. Associated non_payable payments reverted to pending.`);
+    }
+
+    res.json(member); // Return the updated member
+  } catch (error) {
+    console.error('Error toggling member status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete member - PROTECTED (Admins only)
+app.delete('/api/members/:id', authorizeUser(['admin']), async (req, res) => {
+  try {
+    const member = await Member.findByIdAndDelete(req.params.id);
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    // Also delete associated payments and attendance records
+    await Payment.deleteMany({ memberId: req.params.id });
+    await Attendance.deleteMany({ memberId: req.params.id });
+    res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/payments', async (req, res) => {
+
+// Payment Routes - PROTECTED
+// Get all payments - PROTECTED (Admins can view all, Managers view their branch)
+app.get('/api/payments', authorizeUser(['admin', 'manager']), async (req, res) => {
   try {
-    const payment = new Payment(req.body);
+    const { branchId, status, memberName } = req.query; // Added memberName
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+    let query = {};
+
+    if (userRole === 'manager' && userBranchId) {
+      query.branchId = userBranchId;
+    } else if (branchId) {
+      query.branchId = branchId;
+    }
+
+    if (status) query.paymentStatus = status;
+
+    if (memberName) {
+      const members = await Member.find({ name: { $regex: memberName, $options: 'i' } }).select('_id');
+      const memberIds = members.map(m => m._id);
+      query.memberId = { $in: memberIds };
+    }
+
+    const payments = await Payment.find(query)
+      .populate('memberId', 'name email')
+      .populate('branchId', 'name location')
+      .sort({ paymentDate: -1 }); // Sort by most recent payment first
+    res.json(payments);
+  } catch (error) {
+    console.error('Error in payments GET API:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add a new payment (e.g., for a new member's first payment) - PROTECTED (Admins and Managers)
+app.post('/api/payments', authorizeUser(['admin', 'manager']), async (req, res) => {
+  try {
+    const paymentData = req.body;
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+
+    // Fetch member to get their branchId if not provided in payload
+    const member = await Member.findById(paymentData.memberId);
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found.' });
+    }
+
+    // Managers can only add payments for members in their assigned branch
+    if (userRole === 'manager' && userBranchId && member.branchId.toString() !== userBranchId.toString()) {
+      return res.status(403).json({ message: 'Forbidden: You can only add payments for members in your assigned branch.' });
+    }
+    // Set branchId from member's branch
+    paymentData.branchId = member.branchId;
+
+    // If payment is marked as 'paid' at creation, set paymentDate
+    if (paymentData.paymentStatus === 'paid' && !paymentData.paymentDate) {
+        paymentData.paymentDate = Date.now();
+    }
+
+    const payment = new Payment(paymentData);
     await payment.save();
     res.status(201).json(payment);
   } catch (error) {
+    console.error('Error in payments POST API:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/payments/:id/status', async (req, res) => {
+// Admins and managers can update payment status, but managers are restricted to their branch
+app.put('/api/payments/:id/status', authorizeUser(['admin', 'manager']), async (req, res) => {
   try {
-    const { paymentStatus } = req.body;
-    const payment = await Payment.findByIdAndUpdate(
-      req.params.id,
-      { paymentStatus },
-      { new: true }
+    const { paymentStatus, paymentMethod } = req.body; // NEW: Added paymentMethod
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+
+    const paymentToUpdate = await Payment.findById(req.params.id);
+    if (!paymentToUpdate) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    // Managers can only update payments in their own branch
+    if (userRole === 'manager' && userBranchId && paymentToUpdate.branchId.toString() !== userBranchId.toString()) {
+      return res.status(403).json({ message: 'Forbidden: You can only update payments in your assigned branch' });
+    }
+
+    // Update paymentStatus and conditionally update paymentDate and paymentMethod
+    paymentToUpdate.paymentStatus = paymentStatus;
+    if (paymentStatus === 'paid') {
+      paymentToUpdate.paymentDate = Date.now(); // Set paymentDate to now if status is 'paid'
+      paymentToUpdate.paymentMethod = paymentMethod; // Set payment method
+    } else if (paymentStatus === 'pending' || paymentStatus === 'overdue' || paymentStatus === 'non_payable') {
+        paymentToUpdate.paymentDate = undefined; // Clear paymentDate if not paid
+        paymentToUpdate.paymentMethod = undefined; // Clear payment method
+    }
+
+    await paymentToUpdate.save();
+    res.json(paymentToUpdate);
+  } catch (error) {
+    console.error('Error updating payment status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk update payment statuses - PROTECTED (Admins and Managers)
+app.post('/api/payments/bulk-update-status', authorizeUser(['admin', 'manager']), async (req, res) => {
+  try {
+    const { month, newStatus, memberIdsToInclude, memberIdsToExclude } = req.body;
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+
+    if (!month || !newStatus || !['paid', 'pending', 'non_payable'].includes(newStatus)) {
+      return res.status(400).json({ message: 'Month and valid newStatus (paid, pending, non_payable) are required.' });
+    }
+
+    let memberQuery = {};
+    // Apply branch filtering for managers
+    if (userRole === 'manager' && userBranchId) {
+      memberQuery.branchId = userBranchId;
+    }
+
+    let membersToProcess;
+    if (memberIdsToInclude && memberIdsToInclude.length > 0) {
+      memberQuery._id = { $in: memberIdsToInclude };
+      membersToProcess = await Member.find(memberQuery);
+    } else {
+      membersToProcess = await Member.find(memberQuery);
+      if (memberIdsToExclude && memberIdsToExclude.length > 0) {
+        membersToProcess = membersToProcess.filter(member => !memberIdsToExclude.includes(member._id.toString()));
+      }
+    }
+
+    const memberIds = membersToProcess.map(m => m._id);
+
+    // Perform the bulk update
+    const updateResult = await Payment.updateMany(
+      {
+        memberId: { $in: memberIds },
+        paymentMonth: month
+      },
+      {
+        $set: {
+          paymentStatus: newStatus,
+          // Conditionally set/clear paymentDate and paymentMethod for bulk update
+          paymentDate: newStatus === 'paid' ? Date.now() : undefined,
+          paymentMethod: newStatus === 'paid' ? 'Bulk Update' : undefined, // Default method for bulk paid
+        }
+      }
     );
-    res.json(payment);
+
+    res.json({ message: `${updateResult.modifiedCount} payments updated successfully.`, updateResult });
+
+  } catch (error) {
+    console.error('Error in bulk payment update:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete payment - PROTECTED (Admins only)
+app.delete('/api/payments/:id', authorizeUser(['admin']), async (req, res) => {
+  try {
+    const payment = await Payment.findByIdAndDelete(req.params.id);
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Attendance routes
-app.get('/api/attendance', async (req, res) => {
+
+// Attendance Routes - PROTECTED
+// Get all attendance records - PROTECTED (Admins can view all, Managers view their branch)
+app.get('/api/attendance', authorizeUser(['admin', 'manager']), async (req, res) => {
   try {
-    const { memberId, branchId, date } = req.query; // Added memberId filter
+    const { branchId, date, memberName } = req.query;
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
     let query = {};
-    
-    if (memberId) query.memberId = memberId; // Filter by memberId
-    if (branchId) query.branchId = branchId;
-    if (date) {
-      const startDate = new Date(date);
-      const endDate = new Date(date);
-      endDate.setDate(endDate.getDate() + 1);
-      query.createdAt = { $gte: startDate, $lt: endDate };
+
+    if (userRole === 'manager' && userBranchId) {
+      query.branchId = userBranchId;
+    } else if (branchId) {
+      query.branchId = branchId;
     }
-    
+
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      query.checkInTime = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    if (memberName) {
+      const members = await Member.find({ name: { $regex: memberName, $options: 'i' } }).select('_id');
+      const memberIds = members.map(m => m._id);
+      query.memberId = { $in: memberIds };
+    }
+
     const attendance = await Attendance.find(query)
-      .populate('memberId', 'name email phone')
+      .populate('memberId', 'name email')
       .populate('branchId', 'name location')
-      .sort({ createdAt: -1 });
+      .sort({ checkInTime: -1 });
     res.json(attendance);
   } catch (error) {
+    console.error('Error in attendance GET API:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/attendance/checkin', async (req, res) => {
+// NEW: Get attendance for a specific member - PROTECTED
+app.get('/api/members/:memberId/attendance', authorizeUser(['admin', 'manager']), async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+
+    const member = await Member.findById(memberId);
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+    // Managers can only view attendance for members in their own branch
+    if (userRole === 'manager' && userBranchId && member.branchId.toString() !== userBranchId.toString()) {
+      return res.status(403).json({ message: 'Forbidden: You can only view attendance for members in your assigned branch' });
+    }
+
+    const attendanceRecords = await Attendance.find({ memberId })
+      .populate('branchId', 'name location')
+      .sort({ checkInTime: -1 }); // Sort by most recent check-in first
+    res.json(attendanceRecords);
+  } catch (error) {
+    console.error('Error in member attendance GET API:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+// Check-in member - PROTECTED (Admins and Managers)
+app.post('/api/attendance/checkin', authorizeUser(['admin', 'manager']), async (req, res) => {
   try {
     const { memberId, branchId } = req.body;
-    
-    // Check if member already checked in today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const existingAttendance = await Attendance.findOne({
-      memberId,
-      createdAt: { $gte: today },
-      checkOutTime: { $exists: false }
-    });
-    
-    if (existingAttendance) {
-      return res.status(400).json({ error: 'Member already checked in today' });
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+
+    const member = await Member.findById(memberId);
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
     }
-    
-    const attendance = new Attendance({ memberId, branchId });
+    if (!member.isActive) {
+      return res.status(400).json({ error: 'Cannot check in an inactive member.' });
+    }
+
+    // Managers can only check-in members from their assigned branch
+    if (userRole === 'manager' && userBranchId && member.branchId.toString() !== userBranchId.toString()) {
+      return res.status(403).json({ message: 'Forbidden: You can only check-in members in your assigned branch' });
+    }
+
+    // Check if member is already checked in (no checkOutTime)
+    const existingCheckIn = await Attendance.findOne({ memberId: memberId, checkOutTime: { $exists: false } });
+    if (existingCheckIn) {
+      return res.status(400).json({ message: 'Member is already checked in.' });
+    }
+
+    // Use member's branchId for attendance record, even if branchId is sent in body (for managers)
+    const attendance = new Attendance({ memberId, branchId: member.branchId });
     await attendance.save();
     res.status(201).json(attendance);
   } catch (error) {
+    console.error('Error in attendance checkin POST API:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/attendance/:id/checkout', async (req, res) => {
+// Admins and managers can check-out members, but managers are restricted to their branch
+app.put('/api/attendance/:id/checkout', authorizeUser(['admin', 'manager']), async (req, res) => {
   try {
     const checkOutTime = new Date();
-    const attendance = await Attendance.findById(req.params.id);
-    
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+
+    const attendance = await Attendance.findById(req.params.id).populate('memberId');
     if (!attendance) {
       return res.status(404).json({ error: 'Attendance record not found' });
     }
-    
-    const duration = Math.floor((checkOutTime - attendance.checkInTime) / (1000 * 60));
-    
+    if (attendance.checkOutTime) {
+      return res.status(400).json({ message: 'Member already checked out.' });
+    }
+
+    // Managers can only check-out members from their assigned branch
+    if (userRole === 'manager' && userBranchId && attendance.branchId.toString() !== userBranchId.toString()) {
+      return res.status(403).json({ message: 'Forbidden: You can only check-out members in your assigned branch' });
+    }
+
+    // Calculate duration
+    const durationMs = checkOutTime.getTime() - attendance.checkInTime.getTime();
+    attendance.duration = Math.round(durationMs / (1000 * 60)); // Duration in minutes
+
     attendance.checkOutTime = checkOutTime;
-    attendance.duration = duration;
     await attendance.save();
-    
     res.json(attendance);
   } catch (error) {
+    console.error('Error checking out member:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// --- Workout Routes (Added for Flutter app) ---
-
-// Get all workouts (can filter by memberId)
-app.get('/api/workouts', async (req, res) => {
+// NEW: Expense Routes
+// Add a new expense - PROTECTED (Admins and Managers)
+app.post('/api/expenses', authorizeUser(['admin', 'manager']), async (req, res) => {
   try {
-    const { memberId } = req.query;
-    let query = {};
-    if (memberId) {
-      query.memberId = memberId;
+    const { reason, amount, branchId } = req.body;
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+
+    // Managers can only add expenses for their assigned branch
+    if (userRole === 'manager' && userBranchId) {
+      if (branchId && branchId !== userBranchId) {
+        return res.status(403).json({ message: 'Forbidden: Managers can only add expenses for their assigned branch.' });
+      }
+      req.body.branchId = userBranchId; // Ensure expense is linked to manager's branch
+    } else if (userRole === 'admin' && branchId && !mongoose.Types.ObjectId.isValid(branchId)) {
+        return res.status(400).json({ message: 'Invalid Branch ID provided for expense.' });
     }
-    const workouts = await Workout.find(query)
-      .populate('memberId', 'name email') // Populate member details
-      .sort({ workoutDate: -1, createdAt: -1 });
-    res.json(workouts);
+
+    const expense = new Expense(req.body);
+    await expense.save();
+    res.status(201).json(expense);
   } catch (error) {
+    console.error('Error adding expense:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Add a new workout
-app.post('/api/workouts', async (req, res) => {
+// Get expenses - PROTECTED (Admins can view all, Managers view their branch)
+app.get('/api/expenses', authorizeUser(['admin', 'manager']), async (req, res) => {
   try {
-    const workout = new Workout(req.body);
-    await workout.save();
-    res.status(201).json(workout);
+    const { branchId, month } = req.query;
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+    let query = {};
+
+    if (userRole === 'manager' && userBranchId) {
+      query.branchId = userBranchId;
+    } else if (branchId) {
+      query.branchId = branchId;
+    }
+
+    if (month) {
+      const [year, monthNum] = month.split('-');
+      const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+      const endDate = new Date(parseInt(year), parseInt(monthNum), 0);
+      query.date = { $gte: startDate, $lte: endDate };
+    }
+
+    const expenses = await Expense.find(query).populate('branchId', 'name location').sort({ date: -1 });
+    res.json(expenses);
   } catch (error) {
+    console.error('Error fetching expenses:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 
-// Serve frontend
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
+// Server Start
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  // Optional: Initialize sample data on server start (only if no data exists)
+  initializeSampleData();
 });
 
-// Initialize sample data
+// Sample Data Initialization (Simplified)
 async function initializeSampleData() {
   try {
     const branchCount = await Branch.countDocuments();
@@ -413,35 +933,65 @@ async function initializeSampleData() {
         { name: 'Eastside Branch', location: '789 East Blvd', contact: '+1234567892' },
         { name: 'Northside Branch', location: '321 North Rd', contact: '+1234567893' }
       ]);
-      
-      console.log('Sample branches created');
-    }
 
-    // Add a sample admin user if none exists
-    const adminCount = await Member.countDocuments({ role: 'admin' });
-    if (adminCount === 0) {
-      const branches = await Branch.find();
-      if (branches.length > 0) {
-        await Member.create({
-          name: 'Admin User',
-          email: 'admin@example.com',
-          phone: '9998887770',
-          branchId: branches[0]._id,
-          membershipType: 'vip',
-          joinDate: new Date(),
-          isActive: true,
-          monthlyFee: 5000,
-          emergencyContact: '9998887771',
-          role: 'admin'
-        });
-        console.log('Sample admin user created');
+      console.log('Sample branches created');
+
+      // Create sample users for demonstration if they don't exist
+      const users = [
+        { username: 'admin', password: 'adminpassword', role: 'admin' },
+        { username: 'manager_downtown', password: 'managerpassword', role: 'manager', branchId: branches[0]._id },
+        { username: 'manager_westside', password: 'managerpassword', role: 'manager', branchId: branches[1]._id }
+      ];
+
+      for (const userData of users) {
+        const existingUser = await User.findOne({ username: userData.username });
+        if (!existingUser) {
+          await User.create(userData);
+          console.log(`User ${userData.username} created`);
+        }
+      }
+
+      // Create sample members if they don't exist
+      const memberCount = await Member.countDocuments();
+      if (memberCount === 0) {
+        const members = await Member.insertMany([
+          { name: 'John Doe', email: 'john@example.com', phone: '111-222-3333', branchId: branches[0]._id, membershipType: 'premium', monthlyFee: 2000, fingerprintId: 101 },
+          { name: 'Jane Smith', email: 'jane@example.com', phone: '444-555-6666', branchId: branches[1]._id, membershipType: 'basic', monthlyFee: 1000, fingerprintId: 102 },
+          { name: 'Alice Johnson', email: 'alice@example.com', phone: '777-888-9999', branchId: branches[0]._id, membershipType: 'vip', monthlyFee: 3000, isActive: false, fingerprintId: 103 },
+        ]);
+        console.log('Sample members created');
+
+        // Create sample payments
+        const paymentCount = await Payment.countDocuments();
+        if (paymentCount === 0) {
+          const now = new Date();
+          const currentMonth = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+          const lastMonth = `${now.getFullYear()}-${(now.getMonth()).toString().padStart(2, '0')}`; // For a pending payment from last month
+
+          await Payment.insertMany([
+            { memberId: members[0]._id, branchId: members[0].branchId, amount: 2000, paymentDate: new Date(), paymentMonth: currentMonth, paymentStatus: 'paid', paymentMethod: 'UPI', notes: 'Monthly fee' },
+            { memberId: members[1]._id, branchId: members[1].branchId, amount: 1000, paymentDate: new Date(), paymentMonth: currentMonth, paymentStatus: 'paid', paymentMethod: 'Cash', notes: 'Monthly fee' },
+            { memberId: members[2]._id, branchId: members[2].branchId, amount: 3000, paymentDate: new Date(), paymentMonth: currentMonth, paymentStatus: 'non_payable', notes: 'Inactive member' },
+            { memberId: members[0]._id, branchId: members[0].branchId, amount: 2000, paymentDate: new Date(lastMonth), paymentMonth: lastMonth, paymentStatus: 'pending', notes: 'Previous month pending' },
+          ]);
+          console.log('Sample payments created');
+        }
+
+        // Create sample expenses (NEW)
+        const expenseCount = await Expense.countDocuments();
+        if (expenseCount === 0) {
+          const now = new Date();
+          await Expense.insertMany([
+            { reason: 'Rent', amount: 5000, date: now, branchId: branches[0]._id },
+            { reason: 'Electricity Bill', amount: 1200, date: now, branchId: branches[0]._id },
+            { reason: 'Equipment Maintenance', amount: 800, date: now, branchId: branches[1]._id },
+            { reason: 'Cleaning Supplies', amount: 300, date: now, branchId: branches[0]._id },
+          ]);
+          console.log('Sample expenses created');
+        }
       }
     }
-
   } catch (error) {
     console.error('Error initializing sample data:', error);
   }
 }
-
-// Initialize sample data on server start
-setTimeout(initializeSampleData, 1000);
