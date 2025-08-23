@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* General Reset and Body Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header Styles */
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2.5em;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Login and Main UI Styles */
+        #login-form, .main-ui {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            margin: 50px auto;
+            text-align: center;
+        }
+
+        .main-ui {
+            max-width: none; /* Allow main UI to be wider */
+            margin: 0 auto;
+            padding: 0;
+            display: flex;
+            min-height: calc(100vh - 40px);
+        }
+
+        #login-form h2 {
+            margin-bottom: 20px;
+            color: #555;
+        }
+
+        #login-form input[type="text"], #login-form input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        #login-form button {
+            background-color: #764ba2;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        #login-form button:hover {
+            background-color: #667eea;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 250px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-top-left-radius: 15px;
+            border-bottom-left-radius: 15px;
+        }
+
+        .sidebar h3 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.5em;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            flex-grow: 1;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 15px;
+            display: block;
+            border-radius: 8px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .sidebar-menu a:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+        
+        .sidebar-menu a.active {
+            background-color: white;
+            color: #764ba2;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar-menu a i {
+            margin-right: 10px;
+        }
+
+        .logout-button {
+            background-color: #d9534f;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            margin-top: auto;
+        }
+
+        .logout-button:hover {
+            background-color: #c9302c;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            padding: 40px;
+            background: white;
+            border-top-right-radius: 15px;
+            border-bottom-right-radius: 15px;
+        }
+
+        .main-content-tab-content {
+            display: none;
+        }
+
+        .main-content-tab-content.active {
+            display: block;
+        }
+
+        /* Card and Stats */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #f4f4f4;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h4 {
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .card p {
+            font-size: 2em;
+            color: #764ba2;
+            font-weight: bold;
+        }
+
+        /* Table Styles */
+        .content-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #764ba2;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        /* Form Styles */
+        .form-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .form-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-container input[type="text"], 
+        .form-container input[type="email"], 
+        .form-container input[type="date"], 
+        .form-container input[type="number"], 
+        .form-container select,
+        .form-container textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        .form-container button {
+            grid-column: span 2;
+            padding: 12px 20px;
+            background-color: #764ba2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .form-container button:hover {
+            background-color: #667eea;
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .add-button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .add-button:hover {
+            background-color: #218838;
+        }
+
+        /* Action Buttons within Tables */
+        .action-buttons button, .action-buttons a {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .action-buttons button:hover {
+            background-color: #0056b3;
+        }
+        .action-buttons .delete-btn {
+            background-color: #dc3545;
+        }
+        .action-buttons .delete-btn:hover {
+            background-color: #c82333;
+        }
+        .action-buttons .edit-btn {
+            background-color: #ffc107;
+            color: #333;
+        }
+        .action-buttons .edit-btn:hover {
+            background-color: #e0a800;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 10px;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover, .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-body .form-container {
+            grid-template-columns: 1fr;
+        }
+
+        /* Alert Messages */
+        #alert-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            opacity: 0.9;
+            transition: opacity 0.5s ease-in-out;
+            color: white;
+            font-weight: bold;
+        }
+        .alert.success {
+            background-color: #28a745;
+        }
+        .alert.error {
+            background-color: #dc3545;
+        }
+        .alert.info {
+            background-color: #007bff;
+        }
+
+        /* Chart Styles */
+        #revenue-chart {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        /* Bulk Update */
+        .bulk-update-section {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f2f2f2;
+            border-radius: 10px;
+        }
+        .bulk-update-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            align-items: end;
+        }
+        .bulk-update-form .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Attendance */
+        #attendance-table .member-name-cell {
+            font-weight: bold;
+            color: #555;
+        }
+        #attendance-table .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-present {
+            background-color: #28a745;
+        }
+        .status-absent {
+            background-color: #dc3545;
+        }
+        .status-unknown {
+            background-color: #ffc107;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>GYM MANAGEMENT</h1>
+    </div>
+
+    <div id="login-form">
+        <h2>Admin Login</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </div>
+
+    <div class="main-ui hidden">
+        <div class="sidebar">
+            <h3>Admin Panel</h3>
+            <ul class="sidebar-menu">
+                <li><a href="#" class="nav-link active" data-tab="dashboard-section"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li><a href="#" class="nav-link" data-tab="members-section"><i class="fas fa-users"></i> Members</a></li>
+                <li><a href="#" class="nav-link" data-tab="payments-section"><i class="fas fa-credit-card"></i> Payments</a></li>
+                <li><a href="#" class="nav-link" data-tab="attendance-section"><i class="fas fa-clipboard-check"></i> Attendance</a></li>
+                <li><a href="#" class="nav-link" data-tab="expenses-section"><i class="fas fa-money-bill-wave"></i> Expenses</a></li>
+            </ul>
+            <button class="logout-button" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+
+        <div class="main-content">
+            
+            <div id="dashboard-section" class="main-content-tab-content active">
+                <h2>Dashboard</h2>
+                <div class="stats-cards">
+                    <div class="card">
+                        <h4>Total Members</h4>
+                        <p id="total-members">-</p>
+                    </div>
+                    <div class="card">
+                        <h4>Active Members</h4>
+                        <p id="active-members">-</p>
+                    </div>
+                    <div class="card">
+                        <h4>Upcoming Renewals</h4>
+                        <p id="upcoming-renewals">-</p>
+                    </div>
+                    <div class="card">
+                        <h4>Pending Payments</h4>
+                        <p id="pending-payments">-</p>
+                    </div>
+                </div>
+                
+                <div id="revenue-chart-container" style="max-width: 1000px; margin: 0 auto;">
+                    <h3>Monthly Revenue vs. Expenses</h3>
+                    <canvas id="revenue-chart"></canvas>
+                </div>
+            </div>
+
+            <div id="members-section" class="main-content-tab-content">
+                <h2>Members</h2>
+                <div class="content-section">
+                    <button class="add-button" onclick="openMemberModal()">+ Add Member</button>
+                    <table id="members-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Membership</th>
+                                <th>Join Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="payments-section" class="main-content-tab-content">
+                <h2>Payments</h2>
+                <div class="bulk-update-section">
+                    <h3>Bulk Payment Update</h3>
+                    <div class="bulk-update-form">
+                        <div class="form-group">
+                            <label for="bulk-update-member">Select Member:</label>
+                            <select id="bulk-update-member">
+                                </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bulk-update-status">Set Status:</label>
+                            <select id="bulk-update-status">
+                                <option value="paid">Paid</option>
+                                <option value="pending">Pending</option>
+                                <option value="non_payable">Non-Payable</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bulk-update-month">For Month:</label>
+                            <input type="month" id="bulk-update-month">
+                        </div>
+                        <div class="form-group">
+                            <button onclick="performBulkUpdate()">Update Selected</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="content-section">
+                    <button class="add-button" onclick="openPaymentModal()">+ Add Payment</button>
+                    <table id="payments-table">
+                        <thead>
+                            <tr>
+                                <th>Member Name</th>
+                                <th>Branch</th>
+                                <th>Amount</th>
+                                <th>Month</th>
+                                <th>Payment Status</th>
+                                <th>Payment Method</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                                <th>Send WhatsApp</th>
+                                <th>Generate PDF</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="attendance-section" class="main-content-tab-content">
+                <h2>Attendance</h2>
+                <div class="content-section">
+                    <div class="form-container">
+                        <input type="date" id="attendance-date-input" value="">
+                        <select id="attendance-member-select">
+                            </select>
+                        <button onclick="recordAttendance()">Record Attendance</button>
+                    </div>
+                    <table id="attendance-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Member Name</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="expenses-section" class="main-content-tab-content">
+                <h2>Expenses</h2>
+                <div class="content-section">
+                    <button class="add-button" onclick="openExpenseModal()">+ Add Expense</button>
+                    <table id="expenses-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Reason</th>
+                                <th>Amount</th>
+                                <th>Branch</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="member-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('member-modal')">&times;</span>
+            <h3>Add/Edit Member</h3>
+            <form id="member-form" class="form-container">
+                <input type="hidden" id="member-id">
+                <label for="member-name">Name:</label>
+                <input type="text" id="member-name" required>
+
+                <label for="member-email">Email:</label>
+                <input type="email" id="member-email">
+
+                <label for="member-phone">Phone:</label>
+                <input type="text" id="member-phone" required>
+
+                <label for="member-branch">Branch:</label>
+                <select id="member-branch" required>
+                    </select>
+
+                <label for="membership-type">Membership Type:</label>
+                <input type="text" id="membership-type" required>
+                
+                <label for="member-joindate">Join Date:</label>
+                <input type="date" id="member-joindate">
+
+                <button type="submit" id="save-member-btn">Save Member</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="payment-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('payment-modal')">&times;</span>
+            <h3>Add/Edit Payment</h3>
+            <form id="payment-form" class="form-container">
+                <input type="hidden" id="payment-id">
+                
+                <label for="payment-member">Member:</label>
+                <select id="payment-member" required>
+                    </select>
+                
+                <label for="payment-amount">Amount:</label>
+                <input type="number" id="payment-amount" required>
+
+                <label for="payment-month">For Month:</label>
+                <input type="month" id="payment-month" required>
+                
+                <label for="payment-status">Status:</label>
+                <select id="payment-status" required>
+                    <option value="paid">Paid</option>
+                    <option value="pending">Pending</option>
+                    <option value="non_payable">Non-Payable</option>
+                </select>
+                
+                <label for="payment-method">Payment Method:</label>
+                <select id="payment-method">
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Card">Card</option>
+                </select>
+                
+                <label for="payment-notes">Notes:</label>
+                <textarea id="payment-notes" rows="3"></textarea>
+                
+                <button type="submit" id="save-payment-btn">Save Payment</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="expense-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('expense-modal')">&times;</span>
+            <h3>Add/Edit Expense</h3>
+            <form id="expense-form" class="form-container">
+                <input type="hidden" id="expense-id">
+                
+                <label for="expense-reason">Reason:</label>
+                <input type="text" id="expense-reason" required>
+                
+                <label for="expense-amount">Amount:</label>
+                <input type="number" id="expense-amount" required>
+
+                <label for="expense-date">Date:</label>
+                <input type="date" id="expense-date" required>
+                
+                <label for="expense-branch">Branch:</label>
+                <select id="expense-branch" required>
+                    </select>
+                
+                <button type="submit" id="save-expense-btn">Save Expense</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="alert-container"></div>
+    
+    <script>
+        // API Base URL
+        const API_URL = 'http://localhost:3000/api';
+        
+        let currentUser = {}; // Global variable to store current user details
+        let allMembers = []; // Cache all members for quick lookup
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const lastLoggedInUser = localStorage.getItem('currentUser');
+            if (lastLoggedInUser) {
+                try {
+                    currentUser = JSON.parse(lastLoggedInUser);
+                    document.getElementById('login-form').classList.add('hidden');
+                    document.querySelector('.main-ui').classList.remove('hidden');
+                    loadAllData();
+                } catch (e) {
+                    console.error("Failed to parse user from local storage:", e);
+                    localStorage.removeItem('currentUser');
+                }
+            }
+        });
+
+        // Add event listeners to navigation links
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.nav-link').forEach(nav => nav.classList.remove('active'));
+                document.querySelectorAll('.main-content-tab-content').forEach(tab => tab.classList.remove('active'));
+                
+                link.classList.add('active');
+                const targetTabId = link.getAttribute('data-tab');
+                document.getElementById(targetTabId).classList.add('active');
+
+                // Load data for the selected tab
+                switch(targetTabId) {
+                    case 'dashboard-section':
+                        loadDashboard();
+                        break;
+                    case 'members-section':
+                        loadMembers();
+                        break;
+                    case 'payments-section':
+                        loadPayments();
+                        loadMembersForBulkUpdate(); // Reload member list for bulk update
+                        break;
+                    case 'attendance-section':
+                        loadAttendance();
+                        loadAttendanceMemberSelect(); // Load member list for attendance
+                        break;
+                    case 'expenses-section':
+                        loadExpenses();
+                        loadBranchesForExpenses(); // Load branches for expense modal
+                        break;
+                }
+            });
+        });
+
+        // Function to show alert messages
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert ${type}`;
+            alertDiv.textContent = message;
+            alertContainer.appendChild(alertDiv);
+            setTimeout(() => {
+                alertDiv.style.opacity = '0';
+                setTimeout(() => alertDiv.remove(), 500);
+            }, 3000);
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    currentUser = { username: data.username, token: data.token };
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    document.getElementById('login-form').classList.add('hidden');
+                    document.querySelector('.main-ui').classList.remove('hidden');
+                    showAlert('Login successful!', 'success');
+                    loadAllData();
+                } else {
+                    showAlert(data.message || 'Login failed.', 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showAlert('An error occurred during login. Please check your network connection and server.', 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            currentUser = {};
+            document.getElementById('login-form').classList.remove('hidden');
+            document.querySelector('.main-ui').classList.add('hidden');
+            showAlert('Logged out successfully.', 'info');
+        }
+
+        async function loadAllData() {
+            await loadBranches(); // Load branches first as they are a dependency for other sections
+            loadDashboard();
+            loadMembers();
+            loadPayments();
+            loadAttendance();
+            loadExpenses();
+            loadMembersForBulkUpdate();
+            loadAttendanceMemberSelect();
+        }
+
+        async function fetchWithAuth(url, options = {}) {
+            if (!currentUser.token) {
+                console.error('Authentication token is missing. Please log in.');
+                showAlert('Session expired. Please log in again.', 'error');
+                logout();
+                return Promise.reject(new Error('Authentication failed.'));
+            }
+            options.headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${currentUser.token}`
+            };
+            const response = await fetch(url, options);
+            if (response.status === 401) { // Unauthorized
+                showAlert('Session expired. Please log in again.', 'error');
+                logout();
+                return Promise.reject(new Error('Authentication failed.'));
+            }
+            return response;
+        }
+
+        // Dashboard functions
+        async function loadDashboard() {
+            try {
+                const [membersResponse, paymentsResponse, expensesResponse] = await Promise.all([
+                    fetchWithAuth(`${API_URL}/members`),
+                    fetchWithAuth(`${API_URL}/payments`),
+                    fetchWithAuth(`${API_URL}/expenses`)
+                ]);
+                
+                const members = await membersResponse.json();
+                const payments = await paymentsResponse.json();
+                const expenses = await expensesResponse.json();
+                
+                document.getElementById('total-members').textContent = members.length;
+                document.getElementById('active-members').textContent = members.filter(m => m.isActive).length;
+
+                const today = new Date();
+                const upcomingRenewals = members.filter(m => {
+                    const joinDate = new Date(m.joinDate);
+                    const renewalDate = new Date(joinDate);
+                    renewalDate.setMonth(joinDate.getMonth() + 1); // Assuming monthly membership
+                    return renewalDate > today && renewalDate <= new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+                }).length;
+                document.getElementById('upcoming-renewals').textContent = upcomingRenewals;
+
+                const pendingPayments = payments.filter(p => p.paymentStatus === 'pending').length;
+                document.getElementById('pending-payments').textContent = pendingPayments;
+                
+                // Chart data
+                const monthlyRevenue = {};
+                const monthlyExpenses = {};
+                
+                payments.forEach(p => {
+                    const month = new Date(p.paymentDate).toISOString().slice(0, 7);
+                    monthlyRevenue[month] = (monthlyRevenue[month] || 0) + p.amount;
+                });
+                expenses.forEach(e => {
+                    const month = new Date(e.date).toISOString().slice(0, 7);
+                    monthlyExpenses[month] = (monthlyExpenses[month] || 0) + e.amount;
+                });
+                
+                const allMonths = [...new Set([...Object.keys(monthlyRevenue), ...Object.keys(monthlyExpenses)])].sort();
+                
+                const revenueData = allMonths.map(month => monthlyRevenue[month] || 0);
+                const expenseData = allMonths.map(month => monthlyExpenses[month] || 0);
+                
+                const ctx = document.getElementById('revenue-chart').getContext('2d');
+                if (window.myChart) {
+                    window.myChart.destroy();
+                }
+                window.myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: allMonths,
+                        datasets: [
+                            {
+                                label: 'Revenue',
+                                data: revenueData,
+                                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Expenses',
+                                data: expenseData,
+                                backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                // The fetchWithAuth function already handles the alert for session expiration
+            }
+        }
+
+
+        // Member functions
+        async function loadMembers() {
+            try {
+                const response = await fetchWithAuth(`${API_URL}/members`);
+                allMembers = await response.json(); // Cache members for quick lookup
+                const membersTableBody = document.querySelector('#members-table tbody');
+                membersTableBody.innerHTML = ''; // Clear existing data
+                allMembers.forEach(member => {
+                    const row = membersTableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${member.name}</td>
+                        <td>${member.phone}</td>
+                        <td>${member.email}</td>
+                        <td>${member.membershipType}</td>
+                        <td>${new Date(member.joinDate).toLocaleDateString()}</td>
+                        <td class="action-buttons">
+                            <button class="edit-btn" onclick="openMemberModal('${member._id}')"><i class="fas fa-edit"></i></button>
+                            <button class="delete-btn" onclick="deleteMember('${member._id}')"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading members:', error);
+            }
+        }
+
+        async function openMemberModal(memberId = null) {
+            document.getElementById('member-id').value = memberId || '';
+            document.getElementById('member-form').reset();
+            
+            await loadBranchesForMembers();
+            
+            if (memberId) {
+                const member = allMembers.find(m => m._id === memberId);
+                if (member) {
+                    document.getElementById('member-name').value = member.name;
+                    document.getElementById('member-email').value = member.email;
+                    document.getElementById('member-phone').value = member.phone;
+                    document.getElementById('member-branch').value = member.branchId;
+                    document.getElementById('membership-type').value = member.membershipType;
+                    document.getElementById('member-joindate').value = member.joinDate ? new Date(member.joinDate).toISOString().split('T')[0] : '';
+                }
+            }
+            document.getElementById('member-modal').style.display = 'block';
+        }
+
+        document.getElementById('member-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const memberId = document.getElementById('member-id').value;
+            const memberData = {
+                name: document.getElementById('member-name').value,
+                email: document.getElementById('member-email').value,
+                phone: document.getElementById('member-phone').value,
+                branchId: document.getElementById('member-branch').value,
+                membershipType: document.getElementById('membership-type').value,
+                joinDate: document.getElementById('member-joindate').value || undefined
+            };
+
+            const method = memberId ? 'PUT' : 'POST';
+            const url = memberId ? `${API_URL}/members/${memberId}` : `${API_URL}/members`;
+
+            try {
+                const response = await fetchWithAuth(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(memberData)
+                });
+                
+                if (response.ok) {
+                    showAlert(`Member ${memberId ? 'updated' : 'added'} successfully!`, 'success');
+                    closeModal('member-modal');
+                    loadMembers();
+                } else {
+                    const errorData = await response.json();
+                    showAlert(errorData.message || `Error ${memberId ? 'updating' : 'adding'} member`, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving member:', error);
+                showAlert('An error occurred while saving the member.', 'error');
+            }
+        });
+
+        async function deleteMember(memberId) {
+            if (confirm('Are you sure you want to delete this member?')) {
+                try {
+                    const response = await fetchWithAuth(`${API_URL}/members/${memberId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        showAlert('Member deleted successfully!', 'success');
+                        loadMembers();
+                    } else {
+                        const errorData = await response.json();
+                        showAlert(errorData.message || 'Error deleting member', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting member:', error);
+                    showAlert('An error occurred while deleting the member.', 'error');
+                }
+            }
+        }
+
+        // Payments functions
+        async function loadPayments() {
+            try {
+                const response = await fetchWithAuth(`${API_URL}/payments/with-details`);
+                const payments = await response.json();
+                const paymentsTableBody = document.querySelector('#payments-table tbody');
+                paymentsTableBody.innerHTML = '';
+                payments.forEach(payment => {
+                    const row = paymentsTableBody.insertRow();
+                    const statusColor = payment.paymentStatus === 'paid' ? 'green' : payment.paymentStatus === 'pending' ? 'orange' : 'red';
+                    
+                    // Create the WhatsApp message text
+                    const month = new Date(payment.paymentMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
+                    const messageText = encodeURIComponent(`Hi ${payment.memberName}, your payment for ${month} has been ${payment.paymentStatus}. Amount: ₹${payment.amount}.`);
+                    const whatsappUrl = `https://wa.me/${payment.memberPhone}?text=${messageText}`;
+
+                    row.innerHTML = `
+                        <td>${payment.memberName}</td>
+                        <td>${payment.branchName}</td>
+                        <td>₹${payment.amount}</td>
+                        <td>${new Date(payment.paymentMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}</td>
+                        <td style="color: ${statusColor}; font-weight: bold;">${payment.paymentStatus.replace('_', ' ')}</td>
+                        <td>${payment.paymentMethod}</td>
+                        <td>${payment.notes}</td>
+                        <td class="action-buttons">
+                            <button class="edit-btn" onclick="openPaymentModal('${payment._id}')"><i class="fas fa-edit"></i></button>
+                            <button class="delete-btn" onclick="deletePayment('${payment._id}')"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                        <td>
+                            <a href="${whatsappUrl}" target="_blank" style="background-color: #25d366; color: white; padding: 6px 12px; border-radius: 5px; text-decoration: none;">
+                                <i class="fab fa-whatsapp"></i> Send
+                            </a>
+                        </td>
+                        <td>
+                            <button onclick="generateReceipt('${payment._id}')" style="background-color: #dc3545; color: white; padding: 6px 12px; border-radius: 5px; border: none; cursor: pointer;">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </button>
+                        </td>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading payments:', error);
+            }
+        }
+
+        async function openPaymentModal(paymentId = null) {
+            document.getElementById('payment-id').value = paymentId || '';
+            document.getElementById('payment-form').reset();
+            
+            await loadMembersForPayments();
+            
+            if (paymentId) {
+                try {
+                    const response = await fetchWithAuth(`${API_URL}/payments/${paymentId}`);
+                    const payment = await response.json();
+                    document.getElementById('payment-member').value = payment.memberId;
+                    document.getElementById('payment-amount').value = payment.amount;
+                    document.getElementById('payment-month').value = payment.paymentMonth ? new Date(payment.paymentMonth).toISOString().slice(0, 7) : '';
+                    document.getElementById('payment-status').value = payment.paymentStatus;
+                    document.getElementById('payment-method').value = payment.paymentMethod;
+                    document.getElementById('payment-notes').value = payment.notes;
+                } catch (error) {
+                    console.error('Error fetching payment details:', error);
+                }
+            }
+            document.getElementById('payment-modal').style.display = 'block';
+        }
+
+        document.getElementById('payment-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const paymentId = document.getElementById('payment-id').value;
+            const paymentData = {
+                memberId: document.getElementById('payment-member').value,
+                amount: document.getElementById('payment-amount').value,
+                paymentMonth: document.getElementById('payment-month').value,
+                paymentStatus: document.getElementById('payment-status').value,
+                paymentMethod: document.getElementById('payment-method').value,
+                notes: document.getElementById('payment-notes').value
+            };
+
+            const method = paymentId ? 'PUT' : 'POST';
+            const url = paymentId ? `${API_URL}/payments/${paymentId}` : `${API_URL}/payments`;
+
+            try {
+                const response = await fetchWithAuth(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(paymentData)
+                });
+                
+                if (response.ok) {
+                    showAlert(`Payment ${paymentId ? 'updated' : 'added'} successfully!`, 'success');
+                    closeModal('payment-modal');
+                    loadPayments();
+                } else {
+                    const errorData = await response.json();
+                    showAlert(errorData.message || `Error ${paymentId ? 'updating' : 'adding'} payment`, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving payment:', error);
+                showAlert('An error occurred while saving the payment.', 'error');
+            }
+        });
+
+        async function deletePayment(paymentId) {
+            if (confirm('Are you sure you want to delete this payment?')) {
+                try {
+                    const response = await fetchWithAuth(`${API_URL}/payments/${paymentId}`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        showAlert('Payment deleted successfully!', 'success');
+                        loadPayments();
+                    } else {
+                        const errorData = await response.json();
+                        showAlert(errorData.message || 'Error deleting payment', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting payment:', error);
+                    showAlert('An error occurred while deleting the payment.', 'error');
+                    }
+                }
+        }
+
+        async function loadMembersForBulkUpdate() {
+            const select = document.getElementById('bulk-update-member');
+            select.innerHTML = '<option value="">All Members</option>';
+            try {
+                const response = await fetchWithAuth(`${API_URL}/members`);
+                const members = await response.json();
+                members.forEach(member => {
+                    const option = document.createElement('option');
+                    option.value = member._id;
+                    option.textContent = member.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading members for bulk update:', error);
+            }
+        }
+
+        async function performBulkUpdate() {
+            const memberId = document.getElementById('bulk-update-member').value;
+            const paymentStatus = document.getElementById('bulk-update-status').value;
+            const paymentMonth = document.getElementById('bulk-update-month').value;
+
+            if (!paymentMonth) {
+                showAlert('Please select a month for the bulk update.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetchWithAuth(`${API_URL}/payments/bulk-update`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ memberId, paymentMonth, paymentStatus })
+                });
+
+                if (response.ok) {
+                    showAlert('Bulk update successful!', 'success');
+                    loadPayments();
+                } else {
+                    const errorData = await response.json();
+                    showAlert(errorData.message || 'Error performing bulk update', 'error');
+                }
+            } catch (error) {
+                console.error('Error performing bulk update:', error);
+                showAlert('An error occurred during bulk update', 'error');
+            }
+        }
+
+        async function generateReceipt(paymentId) {
+            try {
+                const response = await fetchWithAuth(`${API_URL}/payments/${paymentId}/receipt`, {
+                    method: 'GET'
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `receipt_${paymentId}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const errorData = await response.json();
+                    showAlert(errorData.message || 'Error generating PDF', 'error');
+                }
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                showAlert('An error occurred while generating the PDF.', 'error');
+            }
+        }
+
+
+        // Attendance functions
+        async function loadAttendance() {
+            try {
+                const response = await fetchWithAuth(`${API_URL}/attendance`);
+                const attendanceRecords = await response.json();
+                const attendanceTableBody = document.querySelector('#attendance-table tbody');
+                attendanceTableBody.innerHTML = '';
+                attendanceRecords.forEach(record => {
+                    const row = attendanceTableBody.insertRow();
+                    const statusClass = record.status === 'present' ? 'status-present' : 'status-absent';
+                    const statusText = record.status.charAt(0).toUpperCase() + record.status.slice(1);
+                    row.innerHTML = `
+                        <td>${new Date(record.date).toLocaleDateString()}</td>
+                        <td class="member-name-cell">${record.memberName}</td>
+                        <td><span class="status-indicator ${statusClass}"></span>${statusText}</td>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading attendance:', error);
+            }
+        }
+
+        async function loadAttendanceMemberSelect() {
+            const select = document.getElementById('attendance-member-select');
+            select.innerHTML = '';
+            try {
+                const response = await fetchWithAuth(`${API_URL}/members`);
+                const members = await response.json();
+                members.forEach(member => {
+                    const option = document.createElement('option');
+                    option.value = member._id;
+                    option.textContent = member.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading members for attendance:', error);
+            }
+        }
+
+        async function recordAttendance() {
+            const memberId = document.getElementById('attendance-member-select').value;
+            const date = document.getElementById('attendance-date-input').value;
+            
+            if (!memberId || !date) {
+                showAlert('Please select a member and a date.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetchWithAuth(`${API_URL}/attendance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ memberId, date, status: 'present' })
+                });
+
+                if (response.ok) {
+                    showAlert('Attendance recorded successfully!', 'success');
+                    loadAttendance();
+                } else {
+                    const errorData = await response.json();
+                    showAlert(errorData.message || 'Error recording attendance', 'error');
+                }
+            } catch (error) {
+                console.error('Error recording attendance:', error);
+                showAlert('An error occurred while recording attendance.', 'error');
+            }
+        }
+
+        // Expense functions (NEW)
+        async function loadExpenses() {
+            try {
+                const response = await fetchWithAuth(`${API_URL}/expenses/with-branch`);
+                const expenses = await response.json();
+                const expensesTableBody = document.querySelector('#expenses-table tbody');
+                expensesTableBody.innerHTML = '';
+                expenses.forEach(expense => {
+                    const row = expensesTableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${new Date(expense.date).toLocaleDateString()}</td>
+                        <td>${expense.reason}</td>
+                        <td>₹${expense.amount}</td>
+                        <td>${expense.branchName}</td>
+                        <td class="action-buttons">
+                            <button class="edit-btn" onclick="openExpenseModal('${expense._id}')"><i class="fas fa-edit"></i></button>
+                            <button class="delete-btn" onclick="deleteExpense('${expense._id}')"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+            }
+        }
+
+        async function openExpenseModal(expenseId = null) {
+            document.getElementById('expense-id').value = expenseId || '';
+            document.getElementById('expense-form').reset();
+            
+            await loadBranchesForExpenses();
+
+            if (expenseId) {
+                try {
+                    const response = await fetchWithAuth(`${API_URL}/expenses/${expenseId}`);
+                    const expense = await response.json();
+                    document.getElementById('expense-reason').value = expense.reason;
+                    document.getElementById('expense-amount').value = expense.amount;
+                    document.getElementById('expense-date').value = expense.date ? new Date(expense.date).toISOString().split('T')[0] : '';
+                    document.getElementById('expense-branch').value = expense.branchId;
+                } catch (error) {
+                    console.error('Error fetching expense details:', error);
+                }
+            }
+            document.getElementById('expense-modal').style.display = 'block';
+        }
+
+        document.getElementById('expense-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const expenseId = document.getElementById('expense-id').value;
+            const expenseData = {
+                reason: document.getElementById('expense-reason').value,
+                amount: document.getElementById('expense-amount').value,
+                date: document.getElementById('expense-date').value,
+                branchId: document.getElementById('expense-branch').value
+            };
+
+            const method = expenseId ? 'PUT' : 'POST';
+            const url = expenseId ? `${API_URL}/expenses/${expenseId}` : `${API_URL}/expenses`;
+
+            try {
+                const response = await fetchWithAuth(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(expenseData)
+                });
+                
+                if (response.ok) {
+                    showAlert(`Expense ${expenseId ? 'updated' : 'added'} successfully!`, 'success');
+                    closeModal('expense-modal');
+                    loadExpenses();
+                } else {
+                    const errorData = await response.json();
+                    showAlert(errorData.message || `Error ${expenseId ? 'updating' : 'adding'} expense`, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving expense:', error);
+                showAlert('An error occurred while saving the expense.', 'error');
+            }
+        });
+
+        async function deleteExpense(expenseId) {
+            if (confirm('Are you sure you want to delete this expense?')) {
+                try {
+                    const response = await fetchWithAuth(`${API_URL}/expenses/${expenseId}`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        showAlert('Expense deleted successfully!', 'success');
+                        loadExpenses();
+                    } else {
+                        const errorData = await response.json();
+                        showAlert(errorData.message || 'Error deleting expense', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting expense:', error);
+                    showAlert('An error occurred while deleting the expense.', 'error');
+                }
+            }
+        }
+        
+        // Common functions
+        async function loadBranches() {
+            try {
+                const response = await fetchWithAuth(`${API_URL}/branches`);
+                const branches = await response.json();
+                window.branches = branches; // Store globally for other functions
+            } catch (error) {
+                console.error('Error loading branches:', error);
+            }
+        }
+
+        async function loadBranchesForMembers() {
+            const branchSelect = document.getElementById('member-branch');
+            branchSelect.innerHTML = '';
+            if (window.branches) {
+                window.branches.forEach(branch => {
+                    const option = document.createElement('option');
+                    option.value = branch._id;
+                    option.textContent = branch.name;
+                    branchSelect.appendChild(option);
+                });
+            } else {
+                await loadBranches();
+                loadBranchesForMembers();
+            }
+        }
+        
+        async function loadBranchesForExpenses() {
+            const branchSelect = document.getElementById('expense-branch');
+            branchSelect.innerHTML = '';
+            if (window.branches) {
+                window.branches.forEach(branch => {
+                    const option = document.createElement('option');
+                    option.value = branch._id;
+                    option.textContent = branch.name;
+                    branchSelect.appendChild(option);
+                });
+            } else {
+                await loadBranches();
+                loadBranchesForExpenses();
+            }
+        }
+
+        async function loadMembersForPayments() {
+            const memberSelect = document.getElementById('payment-member');
+            memberSelect.innerHTML = '';
+            try {
+                const response = await fetchWithAuth(`${API_URL}/members`);
+                const members = await response.json();
+                members.forEach(member => {
+                    const option = document.createElement('option');
+                    option.value = member._id;
+                    option.textContent = member.name;
+                    memberSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading members for payments:', error);
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            const memberModal = document.getElementById('member-modal');
+            const paymentModal = document.getElementById('payment-modal');
+            const expenseModal = document.getElementById('expense-modal');
+            if (event.target == memberModal) {
+                memberModal.style.display = "none";
+            }
+            if (event.target == paymentModal) {
+                paymentModal.style.display = "none";
+            }
+            if (event.target == expenseModal) {
+                expenseModal.style.display = "none";
+            }
+        }
+
+
+        // Refreshes data periodically (every 30 seconds) if a user is logged in
+        setInterval(() => {
+            if (currentUser.username) { // Only refresh data if a user is currently logged in
+                // Only refresh data for the currently active tab to avoid unnecessary API calls
+                const activeTab = document.querySelector('.main-content-tab-content.active');
+                if (activeTab) {
+                    if (activeTab.id === 'dashboard-section') {
+                        loadDashboard();
+                    } else if (activeTab.id === 'members-section') {
+                        loadMembers();
+                    } else if (activeTab.id === 'payments-section') {
+                        loadPayments();
+                        loadMembersForBulkUpdate(); // Also refresh bulk update list
+                    } else if (activeTab.id === 'attendance-section') {
+                        loadAttendance();
+                    } else if (activeTab.id === 'expenses-section') { // NEW
+                        loadExpenses(); // NEW
+                    }
+                }
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,2746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Receipt specific styles */
+.receipt-line {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.receipt-label {
+    font-weight: bold;
+    color: #4a5568;
+}
+
+.receipt-value {
+    color: #2d3748;
+}
+
+.receipt-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #667eea;
+}
+
+.receipt-footer {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+    font-style: italic;
+    color: #718096;
+}
+        /* General Reset and Body Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header Styles */
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.1em;
+        }
+
+        /* Top Navigation Tabs (Moved from inside content-section) */
+        .top-nav-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.95); /* Use a more prominent background for top nav */
+            border-radius: 10px;
+            padding: 5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .top-nav-tabs .tab {
+            flex: 1;
+            padding: 12px 20px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            color: #4a5568; /* Default text color for tabs */
+        }
+
+        .top-nav-tabs .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        /* Style for the Logout button in top nav */
+        .top-nav-tabs .tab.logout-tab {
+            margin-left: auto; /* Push logout button to the right */
+        }
+
+
+        /* Stats Grid Styles */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Adjusted min-width */
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .stat-card h3 {
+            color: #4a5568;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+        }
+
+        .stat-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .revenue .stat-value { color: #48bb78; }
+        .pending .stat-value { color: #ed8936; }
+        .members .stat-value { color: #4299e1; }
+        .attendance .stat-value { color: #9f7aea; }
+        .new-members .stat-value { color: #319795; } /* New color for new members stat */
+        .paid-fees .stat-value { color: #1a202c; } /* NEW: Color for today's paid fees */
+        .expenses .stat-value { color: #f56565; } /* NEW */
+        .net-revenue .stat-value { color: #2d3748; } /* NEW */
+        .upi-revenue .stat-value { color: #667eea; } /* NEW */
+        .cash-revenue .stat-value { color: #48bb78; } /* NEW */
+
+
+        /* Main Content Layout */
+        .main-content-grid { /* Renamed from .main-content to avoid conflict */
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .content-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .section-title {
+            color: #2d3748;
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        /* Branch Grid Styles */
+        .branch-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .branch-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .branch-card h4 {
+            font-size: 1.2em;
+            margin-bottom: 8px;
+        }
+
+        .branch-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .branch-stat {
+            text-align: center;
+        }
+
+        .branch-stat .value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .branch-stat .label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        /* Tab Navigation Styles */
+        /* These styles are for inner tabs, if any, not the top-level nav */
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        /* Existing .tab, .tab.active styles remain for potential inner tabs if needed */
+        .main-content-tab-content { /* Renamed for clarity */
+            display: none; /* Hidden by default */
+        }
+
+        .main-content-tab-content.active {
+            display: block; /* Shown when active */
+        }
+
+        /* Form Styles */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea { /* Added textarea */
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus { /* Added textarea */
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* Button Styles */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn-info { /* NEW: For View Attendance button */
+            background: #3182ce;
+            color: white;
+        }
+        .btn-info:hover {
+            background: #2b6cb0;
+        }
+
+        /* Data Table Styles */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .data-table th {
+            background: #f7fafc;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        /* Status Badge Styles */
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-inactive {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .status-paid {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-pending {
+            background: #feebc8;
+            color: #744210;
+        }
+
+        .status-overdue {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        .status-non_payable { /* NEW: Style for non_payable status */
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        /* Chart Container Styles */
+        .chart-container {
+            margin-top: 20px;
+            height: 300px;
+            background: #f7fafc;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4a5568;
+            padding: 10px;
+        }
+
+        /* Loading Indicator Styles */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .loading::after {
+            content: '⏳';
+            font-size: 2em;
+            display: block;
+            margin-top: 10px;
+        }
+
+        /* Alert Message Styles */
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left-color: #48bb78;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left-color: #f56565;
+        }
+
+        /* NEW: Login form specific styles */
+        #login-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 40px;
+            margin: 50px auto;
+            max-width: 500px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+        }
+
+        #login-section h2 {
+            margin-bottom: 30px;
+            color: #2d3748;
+        }
+
+        .login-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f4f8;
+            border-radius: 8px;
+            border: 1px dashed #cbd5e0;
+            text-align: left;
+            font-size: 0.9em;
+            color: #4a5568;
+        }
+        .login-info strong {
+            color: #667eea;
+        }
+
+        /* NEW: Modal Styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1001; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+            padding-top: 60px; /* Location of the box */
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            margin: auto;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            width: 80%;
+            max-width: 700px;
+            position: relative;
+        }
+
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #333;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* NEW: Styles for Bulk Payment Update Section */
+        #bulkPaymentUpdateSection {
+            margin-top: 40px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #bulkPaymentUpdateSection .section-title {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        #bulkPaymentUpdateSection .form-grid {
+            grid-template-columns: 1fr 1fr;
+            align-items: flex-end; /* Align buttons/inputs at the bottom */
+        }
+
+        #bulkPaymentUpdateSection .radio-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+
+        #bulkPaymentUpdateSection .radio-group label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            color: #4a5568;
+        }
+
+        #bulkPaymentUpdateSection .radio-group input[type="radio"] {
+            margin-right: 8px;
+            transform: scale(1.2); /* Make radio buttons slightly larger */
+        }
+
+        #memberSelectionList {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #f7fafc;
+            margin-top: 15px;
+            margin-bottom: 20px;
+        }
+
+        #memberSelectionList div {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px dashed #edf2f7;
+        }
+
+        #memberSelectionList div:last-child {
+            border-bottom: none;
+        }
+
+        #memberSelectionList input[type="checkbox"] {
+            margin-right: 12px;
+            transform: scale(1.2); /* Make checkboxes slightly larger */
+        }
+
+        #memberSelectionList label {
+            flex-grow: 1;
+            cursor: pointer;
+            color: #2d3748;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .main-content-grid { /* Renamed from .main-content */
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Further adjusted for smaller screens */
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+            #bulkPaymentUpdateSection .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💪 Passion Fitness Center</h1>
+            <p>Gym management System</p>
+        </div>
+
+        <div id="login-section">
+            <h2>Login to Gym Management System</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 30px;">Login</button>
+            </form>
+            
+        </div>
+
+        <div id="app-content" style="display: none;">
+
+            <div class="top-nav-tabs">
+                <button class="tab active" onclick="showMainContentTab(event, 'dashboard-section')" data-tab-name="dashboard">Dashboard</button>
+                <button class="tab" onclick="showMainContentTab(event, 'members-section')" data-tab-name="members-section">Members</button>
+                <button class="tab" onclick="showMainContentTab(event, 'payments-section')" data-tab-name="payments-section">Payments</button>
+                <button class="tab" onclick="showMainContentTab(event, 'attendance-section')" data-tab-name="attendance-section">Attendance</button>
+                <button class="tab" onclick="showMainContentTab(event, 'expenses-section')" data-tab-name="expenses-section" id="expensesTopTab">Expenses</button> <button class="tab" onclick="showMainContentTab(event, 'add-member-section')" data-tab-name="add-member-section" id="addMemberTopTab">Add Member</button>
+                <button class="tab logout-tab" onclick="logout()">Logout</button>
+            </div>
+
+            <div id="dashboard-section" class="main-content-tab-content active">
+                <div class="content-section" style="margin-bottom: 30px;" id="dashboardFiltersSection">
+                    <h2 class="section-title">Dashboard Filters</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Filter Dashboard by Month</label>
+                            <select id="dashboardMonthFilter" onchange="loadDashboard()">
+                            </select>
+                        </div>
+                        <div class="form-group" id="dashboardBranchFilterGroup">
+                            <label>Filter Dashboard by Branch</label>
+                            <select id="dashboardBranchFilter" onchange="loadDashboard()">
+                                <option value="">All Branches</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card revenue">
+                        <h3>Current Month Total Revenue</h3>
+                        <p class="stat-value" id="totalRevenue">₹0</p>
+                    </div>
+                    <div class="stat-card pending">
+                        <h3>Current Month Pending</h3>
+                        <p class="stat-value" id="totalPendingPayments">₹0</p>
+                    </div>
+                    <div class="stat-card expenses"> <h3>Current Month Total Expenses</h3>
+                        <p class="stat-value" id="totalExpenses">₹0</p>
+                    </div>
+                    <div class="stat-card net-revenue"> <h3>Current Month Net Revenue</h3>
+                        <p class="stat-value" id="netRevenue">₹0</p>
+                    </div>
+                    <div class="stat-card upi-revenue"> <h3>Current Month UPI Revenue</h3>
+                        <p class="stat-value" id="totalRevenueUPI">₹0</p>
+                    </div>
+                    <div class="stat-card cash-revenue"> <h3>Current Month Cash Revenue</h3>
+                        <p class="stat-value" id="totalRevenueCash">₹0</p>
+                    </div>
+                    <div class="stat-card members">
+                        <h3>Total Active Members</h3>
+                        <p class="stat-value" id="totalActiveMembers">0</p>
+                    </div>
+                    <div class="stat-card new-members">
+                        <h3>Today's New Members</h3>
+                        <p class="stat-value" id="todayNewMembers">0</p>
+                    </div>
+                    <div class="stat-card attendance">
+                        <h3>Today's Check-ins</h3>
+                        <p class="stat-value" id="todayAttendance">0</p>
+                    </div>
+                </div>
+
+                <div class="main-content-grid">
+                    <div class="content-section">
+                        <h2 class="section-title">Monthly Revenue Trend</h2>
+                        <div class="chart-container">
+                            <canvas id="monthlyRevenueChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="content-section">
+                        <h2 class="section-title">Members per Branch</h2>
+                        <div class="branch-grid" id="branchGrid">
+                            <div class="loading">Loading branch data...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="members-section" class="main-content-tab-content">
+                <div class="content-section">
+                    <h2 class="section-title">Member Management</h2>
+                    <div class="form-grid">
+                        <div class="form-group" id="memberBranchFilterGroup">
+                            <label>Filter by Branch</label>
+                            <select id="memberBranchFilter" onchange="loadMembers()">
+                                <option value="">All Branches</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Filter by Status</label>
+                            <select id="memberStatusFilter" onchange="loadMembers()">
+                                <option value="">All Statuses</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="memberNameSearch">Search by Name</label>
+                            <input type="text" id="memberNameSearch" placeholder="Enter member name" onkeyup="loadMembers()">
+                        </div>
+                    </div>
+                    <div id="membersTable">
+                        <div class="loading">Loading members...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="payments-section" class="main-content-tab-content">
+                <div class="content-section">
+                    <h2 class="section-title">Payment Management</h2>
+                    <div class="form-grid">
+                        <div class="form-group" id="paymentBranchFilterGroup">
+                            <label>Filter by Branch</label>
+                            <select id="paymentBranchFilter" onchange="loadPayments()">
+                                <option value="">All Branches</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Filter by Status</label>
+                            <select id="paymentStatusFilter" onchange="loadPayments()">
+                                <option value="">All Statuses</option>
+                                <option value="paid">Paid</option>
+                                <option value="pending">Pending</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="non_payable">Non-Payable</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="paymentMemberNameSearch">Search by Member Name</label>
+                            <input type="text" id="paymentMemberNameSearch" placeholder="Enter member name" onkeyup="loadPayments()">
+                        </div>
+                    </div>
+                    <div id="paymentsTable">
+                        <div class="loading">Loading payments...</div>
+                    </div>
+                </div>
+                <div id="bulkPaymentUpdateSection" class="content-section">
+                    <h3 class="section-title">Bulk Fee Payment Status Update</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="bulkUpdateMonthSelect">Select Month:</label>
+                            <input type="month" id="bulkUpdateMonthSelect" required onchange="loadMembersForBulkUpdate()">
+                        </div>
+                        <div class="form-group">
+                            <label>Set Status:</label>
+                            <div class="radio-group">
+                                <label>
+                                    <input type="radio" name="bulkStatus" value="pending" id="statusPayable" checked> Make Payable
+                                </label>
+                                <label>
+                                    <input type="radio" name="bulkStatus" value="non_payable" id="statusNotPayable"> Make Not Payable
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="selectAllMembersCheckbox" checked> Select/Deselect All Members
+                        </label>
+                    </div>
+                    <div id="memberSelectionList">
+                        <div class="loading">Loading members for bulk update...</div>
+                    </div>
+                    <button class="btn btn-success" onclick="performBulkPaymentUpdate()">Apply Bulk Update</button>
+                </div>
+            </div>
+
+            <div id="attendance-section" class="main-content-tab-content">
+                <div class="content-section">
+                    <h3>Attendance Management</h3>
+                    <div class="form-grid">
+                        <div class="form-group" id="attendanceBranchFilterGroup">
+                            <label>Filter by Branch</label>
+                            <select id="attendanceBranchFilter" onchange="loadAttendance()">
+                                <option value="">All Branches</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="attendanceDateFilter">Filter by Date</label>
+                            <input type="date" id="attendanceDateFilter" onchange="loadAttendance()">
+                        </div>
+                        <div class="form-group">
+                            <label for="attendanceMemberNameSearch">Search by Member Name</label>
+                            <input type="text" id="attendanceMemberNameSearch" placeholder="Enter member name" onkeyup="loadAttendance()">
+                        </div>
+                    </div>
+
+                    <div class="form-grid" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+                        <div class="form-group">
+                            <label for="attendanceMemberSelect">Member Check-in</label>
+                            <select id="attendanceMemberSelect" required>
+                                <option value="">Select Member to Check-in</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="attendanceCheckinBranchGroup" style="display: none;">
+                            <label>Branch (for check-in)</label>
+                            <select id="attendanceCheckinBranch" required>
+                                <option value="">Select Branch</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="checkInMember()">Check-in</button>
+                    </div>
+                    <div id="attendanceTable">
+                        <div class="loading">Loading attendance...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="expenses-section" class="main-content-tab-content"> <div class="content-section">
+                    <h2 class="section-title">Expense Management</h2>
+                    <div class="form-grid">
+                        <div class="form-group" id="expenseBranchFilterGroup">
+                            <label>Filter by Branch</label>
+                            <select id="expenseBranchFilter" onchange="loadExpenses()">
+                                <option value="">All Branches</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseMonthFilter">Filter by Month</label>
+                            <input type="month" id="expenseMonthFilter" onchange="loadExpenses()">
+                        </div>
+                    </div>
+                    <div class="form-grid" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+                        <div class="form-group">
+                            <label for="expenseReason">Reason for Expense</label>
+                            <input type="text" id="expenseReason" placeholder="e.g., Rent, Utilities, Supplies" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseAmount">Amount (₹)</label>
+                            <input type="number" id="expenseAmount" placeholder="e.g., 1500" required min="1">
+                        </div>
+                        <div class="form-group" id="expenseBranchSelectGroup">
+                            <label>Branch (Optional for Admin)</label>
+                            <select id="expenseBranchSelect">
+                                <option value="">Select Branch (Optional)</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="addExpense()">Add Expense</button>
+                    </div>
+                    <div id="expensesTable">
+                        <div class="loading">Loading expenses...</div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div id="add-member-section" class="main-content-tab-content">
+                <div class="content-section">
+                    <h2 class="section-title">Add New Member</h2>
+                    <form id="addMemberForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="memberName">Name *</label>
+                                <input type="text" id="memberName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="memberEmail">Email *</label>
+                                <input type="email" id="memberEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="memberPhone">Phone *</label>
+                                <input type="tel" id="memberPhone" required>
+                            </div>
+                            <div class="form-group" id="addMemberBranchGroup">
+                                <label for="memberBranch">Branch *</label>
+                                <select id="memberBranch" required>
+                                    <option value="">Select Branch</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="membershipType">Membership Type *</label>
+                                <select id="membershipType" required>
+                                    <option value="">Select Type</option>
+                                    <option value="basic">Basic (₹650/month)</option>
+                                    <option value="premium">Premium (₹1000/month)</option>
+                                    <option value="vip">VIP (₹1500/month)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="monthlyFee">Monthly Fee *</label>
+                                <input type="number" id="monthlyFee" required >
+                            </div>
+                             <div class="form-group">
+                    <label for="admissionFee">Admission Fee (₹)*</label>
+                    <input type="number" id="admissionFee" value="550" required>
+                </div>
+                <div class="form-group">
+                    <label for="firstPaymentMonth">First Payment Month*</label>
+                    <select id="firstPaymentMonth" required>
+                        <option value="current">Current Month</option>
+                        <option value="next">Next Month</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="paymentMethod">Payment Method*</label>
+                    <select id="paymentMethod" required>
+                        <option value="">Select Method</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Card">Card</option>
+                    </select>
+                </div>
+                            <div class="form-group">
+                                <label for="emergencyContact">Emergency Contact</label>
+                                <input type="tel" id="emergencyContact">
+                            </div>
+                            <div class="form-group">
+                                <label for="memberFingerprintId">Fingerprint ID (1-999)</label>
+                                <input type="number" id="memberFingerprintId" min="1" max="999">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Member</button>
+                    </form>
+                </div>
+            </div>
+
+        </div> </div> <div id="editMemberModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeEditMemberModal()">&times;</span>
+            <h2 class="section-title">Edit Member Details</h2>
+            <form id="editMemberForm">
+                <input type="hidden" id="editMemberId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="editMemberName">Name *</label>
+                        <input type="text" id="editMemberName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editMemberEmail">Email *</label>
+                        <input type="email" id="editMemberEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editMemberPhone">Phone *</label>
+                        <input type="tel" id="editMemberPhone" required>
+                    </div>
+                    <div class="form-group" id="editMemberBranchGroup">
+                        <label>Branch *</label>
+                        <select id="editMemberBranch" required>
+                            <option value="">Select Branch</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editMembershipType">Membership Type *</label>
+                        <select id="editMembershipType" required>
+                            <option value="">Select Type</option>
+                            <option value="basic">Basic (₹650/month)</option>
+                            <option value="premium">Premium (₹1000/month)</option>
+                            <option value="vip">VIP (₹1500/month)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editMonthlyFee">Monthly Fee *</label>
+                        <input type="number" id="editMonthlyFee" required readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEmergencyContact">Emergency Contact</label>
+                        <input type="tel" id="editEmergencyContact">
+                    </div>
+                    <div class="form-group">
+                        <label for="editMemberFingerprintId">Fingerprint ID (1-999)</label>
+                        <input type="number" id="editMemberFingerprintId" min="1" max="999">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="memberAttendanceModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeMemberAttendanceModal()">&times;</span>
+            <h2 class="section-title" id="memberAttendanceTitle">Attendance for Member</h2>
+            <div id="memberAttendanceTable">
+                <div class="loading">Loading attendance records...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="paymentUpdateModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closePaymentUpdateModal()">&times;</span>
+            <h2 class="section-title">Update Payment Status</h2>
+            <form id="paymentUpdateForm">
+                <input type="hidden" id="updatePaymentId">
+                <div class="form-group">
+                    <label for="updatePaymentMemberName">Member Name</label>
+                    <input type="text" id="updatePaymentMemberName" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="updatePaymentAmount">Amount</label>
+                    <input type="number" id="updatePaymentAmount" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="updatePaymentMonth">Month</label>
+                    <input type="text" id="updatePaymentMonth" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="updatePaymentStatus">Payment Status *</label>
+                    <select id="updatePaymentStatus" required>
+                        <option value="pending">Pending</option>
+                        <option value="paid">Paid</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="non_payable">Non-Payable</option>
+                    </select>
+                </div>
+                <div class="form-group" id="paymentMethodGroup" style="display: none;">
+                    <label for="updatePaymentMethod">Payment Method *</label>
+                    <select id="updatePaymentMethod">
+                        <option value="">Select Method</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Card">Card</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Payment</button>
+            </form>
+        </div>
+    </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+    <script>
+        //const API_BASE = 'http://localhost:3000/api'; // Assuming your backend runs on this port
+        const API_BASE = '/api';
+        let currentUser = {}; // Stores username, role, branchId
+        let allBranches = []; // Stores all branches for dropdowns
+        let members = []; // Stores members for the members table
+        let payments = []; // Stores payments for the payments table
+        let attendance = []; // Stores attendance records
+        let expenses = []; // NEW: Stores expenses
+        let allMembersForBulkUpdate = []; // Stores all members for bulk update section
+        let monthlyRevenueChartInstance = null; // To hold the Chart.js instance
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if user is already logged in (e.g., from session storage)
+            const storedUser = localStorage.getItem('currentUser');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                showAppContent();
+                initializeAppData();
+            } else {
+                showLoginSection();
+            }
+
+            // Set today's date as default for attendance filter input
+            document.getElementById('attendanceDateFilter').value = new Date().toISOString().split('T')[0];
+
+            // Set current month as default for bulk update month filter
+            const today = new Date();
+            const currentMonth = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`;
+            document.getElementById('bulkUpdateMonthSelect').value = currentMonth;
+            document.getElementById('expenseMonthFilter').value = currentMonth; // NEW
+
+            // Event listener for payment status change in the modal
+            document.getElementById('updatePaymentStatus').addEventListener('change', function() {
+                const paymentMethodGroup = document.getElementById('paymentMethodGroup');
+                if (this.value === 'paid') {
+                    paymentMethodGroup.style.display = 'flex';
+                    document.getElementById('updatePaymentMethod').setAttribute('required', 'required');
+                } else {
+                    paymentMethodGroup.style.display = 'none';
+                    document.getElementById('updatePaymentMethod').removeAttribute('required');
+                    document.getElementById('updatePaymentMethod').value = ''; // Clear method if not paid
+                }
+            });
+        });
+
+        // Event Listeners for Forms
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.user;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser)); // Store user info
+                    showAlert('Login successful!', 'success');
+                    showAppContent();
+                    initializeAppData();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.message || 'Login failed', 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showAlert('An error occurred during login', 'error');
+            }
+        });
+
+        document.getElementById('addMemberForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await addMember();
+        });
+
+        document.getElementById('editMemberForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await updateMember();
+        });
+
+        document.getElementById('paymentUpdateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await updatePayment();
+        });
+
+        // Automatically set monthly fee based on membership type selection
+        document.getElementById('membershipType').addEventListener('change', function() {
+            const type = this.value;
+            let fee = 0;
+            switch(type) {
+                case 'basic': fee = 650; break;
+                case 'premium': fee = 1000; break;
+                case 'vip': fee = 1500; break;
+                default: fee = 0; break; // Default to 0 if no type selected
+            }
+            document.getElementById('monthlyFee').value = fee;
+        });
+
+        // Automatically set monthly fee for EDIT form based on membership type selection (NEW)
+        document.getElementById('editMembershipType').addEventListener('change', function() {
+            const type = this.value;
+            let fee = 0;
+            switch(type) {
+                case 'basic': fee = 650; break;
+                case 'premium': fee = 1000; break;
+                case 'vip': fee = 1500; break;
+                default: fee = 0; break;
+            }
+            document.getElementById('editMonthlyFee').value = fee;
+        });
+
+        // NEW: Handle "Select All" checkbox for bulk payment update
+        document.getElementById('selectAllMembersCheckbox').addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            document.querySelectorAll('#memberSelectionList input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+        });
+
+
+        // Helper for authenticated API calls
+        async function authenticatedFetch(url, options = {}) {
+            const headers = {
+                ...options.headers,
+                'x-username': currentUser.username,
+                'x-role': currentUser.role,
+                'x-branch-id': currentUser.branchId || ''
+            };
+            const response = await fetch(url, { ...options, headers });
+            if (response.status === 401 || response.status === 403) {
+                showAlert('Session expired or unauthorized. Please log in again.', 'error');
+                logout(); // Log out if unauthorized
+                throw new Error('Unauthorized or session expired');
+            }
+            return response;
+        }
+
+        // --- UI State Management ---
+        function logout() {
+            localStorage.removeItem('currentUser');
+            currentUser = {};
+            showLoginSection();
+            showAlert('Logged out successfully!', 'success');
+            resetDashboard(); // Clear dashboard content on logout
+        }
+
+        function showMainContentTab(event, tabId) {
+            // Remove 'active' class from all tab buttons
+            document.querySelectorAll('.top-nav-tabs .tab').forEach(tab => tab.classList.remove('active'));
+            // Add 'active' class to the clicked tab button
+            event.currentTarget.classList.add('active');
+
+            // Hide all main content sections
+            document.querySelectorAll('.main-content-tab-content').forEach(section => section.style.display = 'none');
+            // Show the selected section
+            document.getElementById(tabId).style.display = 'block';
+
+            // Load data specific to the tab when it becomes active
+            if (tabId === 'dashboard-section') loadDashboard();
+            if (tabId === 'members-section') loadMembers();
+            if (tabId === 'payments-section') loadPayments();
+            if (tabId === 'attendance-section') loadAttendance();
+            if (tabId === 'expenses-section') loadExpenses(); // NEW
+        }
+
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+
+            document.body.appendChild(alert);
+
+            // Automatically remove the alert after 3 seconds
+            setTimeout(() => {
+                alert.remove();
+            }, 3000);
+        }
+
+        // Resets dashboard stats and charts
+        function resetDashboard() {
+            document.getElementById('totalRevenue').textContent = '₹0';
+            document.getElementById('totalPendingPayments').textContent = '₹0';
+            document.getElementById('totalExpenses').textContent = '₹0'; // NEW
+            document.getElementById('netRevenue').textContent = '₹0';     // NEW
+            document.getElementById('totalRevenueUPI').textContent = '₹0'; // NEW
+            document.getElementById('totalRevenueCash').textContent = '₹0'; // NEW
+            document.getElementById('totalActiveMembers').textContent = '0';
+            document.getElementById('todayNewMembers').textContent = '0';
+            document.getElementById('todayAttendance').textContent = '0';
+            document.getElementById('branchGrid').innerHTML = '<div class="loading">Loading branch data...</div>';
+            if (monthlyRevenueChartInstance) {
+                monthlyRevenueChartInstance.destroy(); // Destroy existing chart instance
+            }
+        }
+
+        // Shows the login section and hides the main app content
+        function showLoginSection() {
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('app-content').style.display = 'none';
+        }
+
+        // Shows the main app content and hides the login section
+        function showAppContent() {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+            applyUIRestrictions(); // Apply UI restrictions immediately after showing app content
+        }
+
+        // Applies UI restrictions based on the logged-in user's role
+        function applyUIRestrictions() {
+            const isAdmin = currentUser.role === 'admin';
+            const isManager = currentUser.role === 'manager';
+
+            // Dashboard Branch filter: visible only for admin (managers are restricted to their branch)
+            document.getElementById('dashboardBranchFilterGroup').style.display = isAdmin ? 'flex' : 'none';
+
+            // Member, Payment, Attendance branch filters: visible only for admin
+            document.getElementById('memberBranchFilterGroup').style.display = isAdmin ? 'flex' : 'none';
+            document.getElementById('paymentBranchFilterGroup').style.display = isAdmin ? 'flex' : 'none';
+            document.getElementById('attendanceBranchFilterGroup').style.display = isAdmin ? 'flex' : 'none';
+            document.getElementById('expenseBranchFilterGroup').style.display = isAdmin ? 'flex' : 'none'; // NEW
+
+            // Check-in branch selection: visible only for admin, or pre-filled for manager
+            const attendanceCheckinBranchGroup = document.getElementById('attendanceCheckinBranchGroup');
+            attendanceCheckinBranchGroup.style.display = isAdmin ? 'flex' : 'none';
+            if (isManager) {
+                document.getElementById('attendanceCheckinBranch').value = currentUser.branchId;
+                document.getElementById('attendanceCheckinBranch').disabled = true;
+            } else {
+                document.getElementById('attendanceCheckinBranch').disabled = false;
+            }
+
+            // Add Member Branch selection: visible only for admin, or pre-filled for manager
+            const addMemberBranchGroup = document.getElementById('addMemberBranchGroup');
+            addMemberBranchGroup.style.display = isAdmin ? 'flex' : 'none';
+            if (isManager) {
+                document.getElementById('memberBranch').value = currentUser.branchId;
+                document.getElementById('memberBranch').disabled = true;
+            } else {
+                document.getElementById('memberBranch').disabled = false;
+            }
+
+            // Edit Member Branch selection: visible only for admin, or pre-filled for manager
+            const editMemberBranchGroup = document.getElementById('editMemberBranchGroup');
+            editMemberBranchGroup.style.display = isAdmin ? 'flex' : 'none';
+            if (isManager) {
+                document.getElementById('editMemberBranch').value = currentUser.branchId;
+                document.getElementById('editMemberBranch').disabled = true;
+            } else {
+                document.getElementById('editMemberBranch').disabled = false;
+            }
+
+            // Bulk Payment Update Section: visible for both, but manager filter enforced
+            // The logic for filtering members in loadMembersForBulkUpdate will handle manager restrictions
+
+            // Expense Branch Select: visible only for admin, or pre-filled for manager (NEW)
+            const expenseBranchSelectGroup = document.getElementById('expenseBranchSelectGroup');
+            expenseBranchSelectGroup.style.display = isAdmin ? 'flex' : 'none';
+            if (isManager) {
+                document.getElementById('expenseBranchSelect').value = currentUser.branchId;
+                document.getElementById('expenseBranchSelect').disabled = true;
+            } else {
+                document.getElementById('expenseBranchSelect').disabled = false;
+            }
+
+            // Hide/Show "Add Member" and "Expenses" top tabs based on role
+            document.getElementById('addMemberTopTab').style.display = (isAdmin || isManager) ? 'flex' : 'none';
+            document.getElementById('expensesTopTab').style.display = (isAdmin || isManager) ? 'flex' : 'none'; // NEW
+        }
+
+        // --- Data Loading Functions ---
+
+        // Initializes all application data after successful login
+        async function initializeAppData() {
+            populateDashboardMonthFilter(); // Populate month filter for dashboard
+            await loadBranches(); // Load branches (essential for all branch-related dropdowns)
+            loadDashboard();
+            loadMembers();
+            loadPayments();
+            loadAttendance();
+            loadExpenses(); // NEW
+            loadMembersForBulkUpdate(); // Load members for bulk update section
+        }
+
+        // Populates the dashboard month filter dropdown with the last 12 months
+        function populateDashboardMonthFilter() {
+            const select = document.getElementById('dashboardMonthFilter');
+            select.innerHTML = '<option value="">All Months</option>'; // Default "All Months" option
+
+            const today = new Date();
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const year = date.getFullYear();
+                const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Ensure 2 digits (e.g., 07 for July)
+                const monthName = date.toLocaleString('default', { month: 'short' }); // e.g., "Jul"
+                const value = `${year}-${month}`; // e.g., "2023-07"
+
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = `${monthName} ${year}`;
+                select.appendChild(option);
+            }
+            // Set the current month as default selected option
+            const currentMonthValue = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`;
+            select.value = currentMonthValue;
+        }
+
+        async function loadDashboard() {
+            document.getElementById('totalRevenue').textContent = '⏳ Loading...';
+            document.getElementById('totalPendingPayments').textContent = '⏳ Loading...';
+            document.getElementById('totalExpenses').textContent = '⏳ Loading...'; // NEW
+            document.getElementById('netRevenue').textContent = '⏳ Loading...';     // NEW
+            document.getElementById('totalRevenueUPI').textContent = '⏳ Loading...'; // NEW
+            document.getElementById('totalRevenueCash').textContent = '⏳ Loading...'; // NEW
+            document.getElementById('totalActiveMembers').textContent = '⏳ Loading...';
+            document.getElementById('todayNewMembers').textContent = '⏳ Loading...';
+            document.getElementById('todayAttendance').textContent = '⏳ Loading...';
+            document.getElementById('branchGrid').innerHTML = '<div class="loading">Loading branch data...</div>';
+
+            const month = document.getElementById('dashboardMonthFilter').value;
+            const branchId = document.getElementById('dashboardBranchFilter').value;
+
+            let url = `${API_BASE}/dashboard?`;
+            if (month) url += `month=${month}&`;
+            if (branchId) url += `branchId=${branchId}&`;
+            url = url.slice(0, -1); // Remove trailing '&'
+
+            try {
+                const response = await authenticatedFetch(url);
+                const data = await response.json();
+
+                document.getElementById('totalRevenue').textContent = `₹${data.totalRevenue.toLocaleString()}`;
+                document.getElementById('totalPendingPayments').textContent = `₹${data.totalPendingPayments.toLocaleString()}`;
+                document.getElementById('totalExpenses').textContent = `₹${data.totalExpenses.toLocaleString()}`; // NEW
+                document.getElementById('netRevenue').textContent = `₹${data.netRevenue.toLocaleString()}`;     // NEW
+                document.getElementById('totalRevenueUPI').textContent = `₹${data.totalRevenueUPI.toLocaleString()}`; // NEW
+                document.getElementById('totalRevenueCash').textContent = `₹${data.totalRevenueCash.toLocaleString()}`; // NEW
+                document.getElementById('totalActiveMembers').textContent = data.totalActiveMembers;
+                document.getElementById('todayNewMembers').textContent = data.todayNewMembers;
+                document.getElementById('todayAttendance').textContent = data.todayAttendance;
+
+                displayMonthlyRevenueChart(data.monthlyRevenue);
+                displayBranchMembers(data.branchMembers);
+
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                showAlert('Error loading dashboard data', 'error');
+                resetDashboard(); // Reset UI on error
+            }
+        }
+
+        function displayMonthlyRevenueChart(monthlyRevenueData) {
+            const ctx = document.getElementById('monthlyRevenueChart').getContext('2d');
+
+            // Sort data by month (YYYY-MM) to ensure correct chronological order on the chart
+            monthlyRevenueData.sort((a, b) => a._id.localeCompare(b._id));
+
+            const labels = monthlyRevenueData.map(d => {
+                const [year, month] = d._id.split('-');
+                const date = new Date(year, month - 1); // Month is 0-indexed in Date object
+                return date.toLocaleString('default', { month: 'short', year: '2-digit' }); // e.g., "Jul 23"
+            });
+            const data = monthlyRevenueData.map(d => d.revenue);
+
+            // Destroy existing chart instance before creating a new one to prevent conflicts/memory leaks
+            if (monthlyRevenueChartInstance) {
+                monthlyRevenueChartInstance.destroy();
+            }
+
+            // Create new Chart.js instance
+            monthlyRevenueChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Monthly Revenue (₹)',
+                        data: data,
+                        borderColor: '#667eea', // Line color
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)', // Area fill color
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Revenue (₹)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Revenue: ₹${context.parsed.y.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function displayBranchMembers(branchMembersData) {
+            const branchGrid = document.getElementById('branchGrid');
+            if (branchMembersData.length === 0) {
+                branchGrid.innerHTML = '<div class="loading">No branch data found</div>';
+                return;
+            }
+            branchGrid.innerHTML = branchMembersData.map(branch => `
+                <div class="branch-card">
+                    <h4>${branch.branchName}</h4>
+                    <div class="branch-stats">
+                        <div class="branch-stat">
+                            <div class="value">${branch.totalMembers}</div>
+                            <div class="label">Total Members</div>
+                        </div>
+                        <div class="branch-stat">
+                            <div class="value">${branch.activeMembers}</div>
+                            <div class="label">Active Members</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadBranches() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/branches`);
+                allBranches = await response.json();
+                populateBranchDropdowns();
+            } catch (error) {
+                console.error('Error loading branches:', error);
+                showAlert('Error loading branches', 'error');
+            }
+        }
+
+        function populateBranchDropdowns() {
+            const selects = [
+                'dashboardBranchFilter',
+                'memberBranchFilter',
+                'paymentBranchFilter',
+                'attendanceBranchFilter',
+                'attendanceCheckinBranch',
+                'memberBranch', // For add new member form
+                'editMemberBranch', // For edit member form
+                'expenseBranchFilter', // NEW
+                'expenseBranchSelect' // NEW
+            ];
+
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                // Preserve the initial "All Branches" or "Select Branch" option if it exists
+                const defaultOption = select.querySelector('option[value=""]');
+                select.innerHTML = ''; // Clear existing options to prevent duplicates
+                if (defaultOption) {
+                    select.appendChild(defaultOption);
+                } else {
+                    // If no default option, add a generic one based on context
+                    select.innerHTML = selectId.includes('Filter') ? '<option value="">All Branches</option>' : '<option value="">Select Branch</option>';
+                }
+
+                // If the current user is a manager, only add their assigned branch and disable the dropdown
+                if (currentUser.role === 'manager' && currentUser.branchId) {
+                    const managerBranch = allBranches.find(b => b._id === currentUser.branchId);
+                    if (managerBranch) {
+                        const option = document.createElement('option');
+                        option.value = managerBranch._id;
+                        option.textContent = managerBranch.name;
+                        select.appendChild(option);
+                        select.value = managerBranch._id; // Pre-select manager's branch
+                        select.disabled = true; // Disable selection for managers
+                    }
+                } else {
+                    // If the user is an admin, add all available branches and enable the dropdown
+                    allBranches.forEach(branch => {
+                        const option = document.createElement('option');
+                        option.value = branch._id;
+                        option.textContent = branch.name;
+                        select.appendChild(option);
+                    });
+                    select.disabled = false; // Ensure select is enabled for admins
+                }
+            });
+        }
+
+
+        async function loadMembers() {
+            const tableContainer = document.getElementById('membersTable');
+            tableContainer.innerHTML = '<div class="loading">Loading members...</div>';
+            try {
+                const branchId = document.getElementById('memberBranchFilter').value;
+                const status = document.getElementById('memberStatusFilter').value;
+                const name = document.getElementById('memberNameSearch').value; // NEW: Get search input
+
+                let url = `${API_BASE}/members?`;
+                if (branchId) url += `branchId=${branchId}&`;
+                if (status) url += `status=${status}&`;
+                if (name) url += `name=${encodeURIComponent(name)}&`; // NEW: Add name search
+                url = url.slice(0, -1); // Remove trailing '&'
+
+                const response = await authenticatedFetch(url);
+                members = await response.json();
+                displayMembersTable(); // Render members data in a table
+                populateMemberSelect(); // Populate member select dropdown for attendance check-in
+            } catch (error) {
+                console.error('Error loading members:', error);
+                showAlert('Error loading members', 'error');
+                tableContainer.innerHTML = '<div class="loading">Error loading members.</div>';
+            }
+        }
+
+        // Displays the members data in an HTML table
+        function displayMembersTable() {
+            const tableContainer = document.getElementById('membersTable');
+            if (members.length === 0) {
+                tableContainer.innerHTML = '<div class="loading">No members found</div>';
+                return;
+            }
+
+            tableContainer.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Branch</th>
+                            <th>Membership</th>
+                            <th>Monthly Fee</th>
+                            <th>Fingerprint ID</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${members.map(member => `
+                            <tr>
+                                <td>${member.name}</td>
+                                <td>${member.email}</td>
+                                <td>${member.phone}</td>
+                                <td>${member.branchId?.name || 'N/A'}</td>
+                                <td>${member.membershipType}</td>
+                                <td>₹${member.monthlyFee}</td>
+                                <td>${member.fingerprintId || 'N/A'}</td>
+                                <td>
+                                    <span class="status-badge ${member.isActive ? 'status-active' : 'status-inactive'}">
+                                        ${member.isActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn ${member.isActive ? 'btn-warning' : 'btn-success'}" onclick="toggleMemberStatus('${member._id}', ${!member.isActive})">
+                                        ${member.isActive ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                    <button class="btn btn-info" onclick="openMemberAttendanceModal('${member._id}', '${member.name}')">View Attendance</button>
+                                    <button class="btn btn-primary" onclick="openEditMemberModal('${member._id}')">Edit</button>
+                                    <button class="btn btn-danger" onclick="deleteMember('${member._id}')">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function loadPayments() {
+            const tableContainer = document.getElementById('paymentsTable');
+            tableContainer.innerHTML = '<div class="loading">Loading payments...</div>';
+            try {
+                const branchId = document.getElementById('paymentBranchFilter').value;
+                const status = document.getElementById('paymentStatusFilter').value;
+                const memberName = document.getElementById('paymentMemberNameSearch').value; // NEW: Get search input
+
+                let url = `${API_BASE}/payments?`;
+                if (branchId) url += `branchId=${branchId}&`;
+                if (status) url += `status=${status}&`;
+                if (memberName) url += `memberName=${encodeURIComponent(memberName)}&`; // NEW: Add member name search
+                url = url.slice(0, -1); // Remove trailing '&'
+
+                const response = await authenticatedFetch(url);
+                payments = await response.json();
+                displayPaymentsTable(); // Render payments data in a table
+            } catch (error) {
+                console.error('Error loading payments:', error);
+                showAlert('Error loading payments', 'error');
+                tableContainer.innerHTML = '<div class="loading">Error loading payments.</div>';
+            }
+        }
+
+        // Displays the payments data in an HTML table
+        // Displays the payments data in an HTML table
+function displayPaymentsTable() {
+    const tableContainer = document.getElementById('paymentsTable');
+    if (payments.length === 0) {
+        tableContainer.innerHTML = '<div class="loading">No payments found</div>';
+        return;
+    }
+
+    tableContainer.innerHTML = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Member</th>
+                    <th>Branch</th>
+                    <th>Amount</th>
+                    <th>Month</th>
+                    <th>Payment Date</th>
+                    <th>Method</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${payments.map(payment => `
+                    <tr>
+                        <td>${payment.memberId?.name || 'N/A'}</td>
+                        <td>${payment.branchId?.name || 'N/A'}</td>
+                        <td>₹${payment.amount.toLocaleString()}</td>
+                        <td>${payment.paymentMonth}</td>
+                        <td>${payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : 'N/A'}</td>
+                        <td>${payment.paymentMethod || 'N/A'}</td>
+                        <td>
+                            <span class="status-badge status-${payment.paymentStatus}">
+                                ${payment.paymentStatus.replace('_', ' ')}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-primary" onclick="openPaymentUpdateModal('${payment._id}')">Update Status</button>
+                            <button class="btn btn-info" onclick="generateReceipt('${payment._id}')">Generate Receipt</button>
+                            <button class="btn btn-danger" onclick="deletePayment('${payment._id}')">Delete</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+        async function loadAttendance() {
+            const tableContainer = document.getElementById('attendanceTable');
+            tableContainer.innerHTML = '<div class="loading">Loading attendance...</div>';
+            try {
+                const branchId = document.getElementById('attendanceBranchFilter').value;
+                const date = document.getElementById('attendanceDateFilter').value;
+                const memberName = document.getElementById('attendanceMemberNameSearch').value; // NEW: Get search input
+
+                let url = `${API_BASE}/attendance?`;
+                if (branchId) url += `branchId=${branchId}&`;
+                if (date) url += `date=${date}&`;
+                if (memberName) url += `memberName=${encodeURIComponent(memberName)}&`; // NEW: Add member name search
+                url = url.slice(0, -1); // Remove trailing '&'
+
+                const response = await authenticatedFetch(url);
+                attendance = await response.json();
+                displayAttendanceTable(); // Render attendance data in a table
+            } catch (error) {
+                console.error('Error loading attendance:', error);
+                showAlert('Error loading attendance', 'error');
+                tableContainer.innerHTML = '<div class="loading">Error loading attendance.</div>';
+            }
+        }
+
+        // Displays the attendance data in an HTML table
+        function displayAttendanceTable() {
+            const tableContainer = document.getElementById('attendanceTable');
+            if (attendance.length === 0) {
+                tableContainer.innerHTML = '<div class="loading">No attendance records found</div>';
+                return;
+            }
+
+            tableContainer.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Branch</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Duration</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${attendance.map(record => `
+                            <tr>
+                                <td>${record.memberId?.name || 'N/A'}</td>
+                                <td>${record.branchId?.name || 'N/A'}</td>
+                                <td>${new Date(record.checkInTime).toLocaleString()}</td>
+                                <td>${record.checkOutTime ? new Date(record.checkOutTime).toLocaleString() : 'Not checked out'}</td>
+                                <td>${record.duration ? `${record.duration} mins` : 'N/A'}</td>
+                                <td>
+                                    ${!record.checkOutTime ? `<button class="btn btn-warning" onclick="checkOutMember('${record._id}')">Check-out</button>` : ''}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // NEW: Load Expenses
+        async function loadExpenses() {
+            const tableContainer = document.getElementById('expensesTable');
+            tableContainer.innerHTML = '<div class="loading">Loading expenses...</div>';
+            try {
+                const branchId = document.getElementById('expenseBranchFilter').value;
+                const month = document.getElementById('expenseMonthFilter').value;
+
+                let url = `${API_BASE}/expenses?`;
+                if (branchId) url += `branchId=${branchId}&`;
+                if (month) url += `month=${month}&`;
+                url = url.slice(0, -1); // Remove trailing '&'
+
+                const response = await authenticatedFetch(url);
+                expenses = await response.json();
+                displayExpensesTable();
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+                showAlert('Error loading expenses', 'error');
+                tableContainer.innerHTML = '<div class="loading">Error loading expenses.</div>';
+            }
+        }
+
+        // NEW: Display Expenses Table
+        function displayExpensesTable() {
+            const tableContainer = document.getElementById('expensesTable');
+            if (expenses.length === 0) {
+                tableContainer.innerHTML = '<div class="loading">No expenses found</div>';
+                return;
+            }
+
+            tableContainer.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Reason</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Branch</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${expenses.map(expense => `
+                            <tr>
+                                <td>${expense.reason}</td>
+                                <td>₹${expense.amount.toLocaleString()}</td>
+                                <td>${new Date(expense.date).toLocaleDateString()}</td>
+                                <td>${expense.branchId?.name || 'N/A'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // --- Action Functions ---
+
+       async function addMember() {
+    let branchId = document.getElementById('memberBranch').value;
+    // If manager, enforce their assigned branch for new member
+    if (currentUser.role === 'manager' && currentUser.branchId) {
+        branchId = currentUser.branchId;
+    } else if (currentUser.role === 'admin' && !branchId) {
+        showAlert('As Admin, please select a branch for the new member', 'error');
+        return;
+    }
+
+    const memberData = {
+        name: document.getElementById('memberName').value,
+        email: document.getElementById('memberEmail').value,
+        phone: document.getElementById('memberPhone').value,
+        branchId: branchId,
+        membershipType: document.getElementById('membershipType').value,
+        monthlyFee: parseInt(document.getElementById('monthlyFee').value),
+        emergencyContact: document.getElementById('emergencyContact').value,
+        fingerprintId: document.getElementById('memberFingerprintId').value ? parseInt(document.getElementById('memberFingerprintId').value) : null,
+    };
+
+    // Get payment details
+    const admissionFee = parseInt(document.getElementById('admissionFee').value);
+    const paymentMethod = document.getElementById('paymentMethod').value;
+    const firstPaymentMonth = document.getElementById('firstPaymentMonth').value;
+
+    // Validate required fields
+    if (!memberData.name || !memberData.branchId || !memberData.membershipType || isNaN(memberData.monthlyFee) || 
+        isNaN(admissionFee) || !paymentMethod || !firstPaymentMonth) {
+        showAlert('Please fill all required fields', 'error');
+        return;
+    }
+
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/members`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                memberData,
+                admissionFee,
+                paymentMethod,
+                firstPaymentMonth
+            }),
+        });
+
+        if (response.ok) {
+            showAlert('Member added successfully!', 'success');
+            document.getElementById('addMemberForm').reset();
+            document.getElementById('monthlyFee').value = '';
+            loadMembers();
+            loadPayments();
+            loadDashboard();
+        } else {
+            const error = await response.json();
+            showAlert(error.error || 'Error adding member', 'error');
+        }
+    } catch (error) {
+        console.error('Error adding member:', error);
+        showAlert('Error adding member', 'error');
+    }
+}
+              
+        async function openEditMemberModal(memberId) {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/members/${memberId}`);
+                const member = await response.json();
+
+                document.getElementById('editMemberId').value = member._id;
+                document.getElementById('editMemberName').value = member.name;
+                document.getElementById('editMemberEmail').value = member.email;
+                document.getElementById('editMemberPhone').value = member.phone;
+                document.getElementById('editMembershipType').value = member.membershipType;
+                document.getElementById('editMonthlyFee').value = member.monthlyFee;
+                document.getElementById('editEmergencyContact').value = member.emergencyContact || '';
+                document.getElementById('editMemberFingerprintId').value = member.fingerprintId || '';
+
+                // Populate and set branch for edit form
+                const editBranchSelect = document.getElementById('editMemberBranch');
+                // Clear existing options, but keep the default "Select Branch" if it was there
+                const defaultOption = editBranchSelect.querySelector('option[value=""]');
+                editBranchSelect.innerHTML = '';
+                if (defaultOption) {
+                    editBranchSelect.appendChild(defaultOption);
+                } else {
+                    editBranchSelect.innerHTML = '<option value="">Select Branch</option>';
+                }
+
+                if (currentUser.role === 'manager' && currentUser.branchId) {
+                    // For managers, only their branch is an option and it's pre-selected
+                    const managerBranch = allBranches.find(b => b._id === currentUser.branchId);
+                    if (managerBranch) {
+                        const option = document.createElement('option');
+                        option.value = managerBranch._id;
+                        option.textContent = managerBranch.name;
+                        editBranchSelect.appendChild(option);
+                        editBranchSelect.value = managerBranch._id;
+                        editBranchSelect.disabled = true; // Disable for managers
+                    }
+                } else {
+                    // Admin can select any branch
+                    allBranches.forEach(branch => {
+                        const option = document.createElement('option');
+                        option.value = branch._id;
+                        option.textContent = branch.name;
+                        editBranchSelect.appendChild(option);
+                    });
+                    editBranchSelect.value = member.branchId?._id || member.branchId; // Set current branch
+                    editBranchSelect.disabled = false; // Enable for admins
+                }
+
+                document.getElementById('editMemberModal').style.display = 'flex'; // Show modal
+            } catch (error) {
+                console.error('Error opening edit member modal:', error);
+                showAlert('Error loading member details', 'error');
+            }
+        }
+
+        function closeEditMemberModal() {
+            document.getElementById('editMemberModal').style.display = 'none';
+        }
+
+        async function updateMember() {
+            const memberId = document.getElementById('editMemberId').value;
+            let branchId = document.getElementById('editMemberBranch').value; // Get selected branchId
+
+            const updateData = {
+                name: document.getElementById('editMemberName').value,
+                email: document.getElementById('editMemberEmail').value,
+                phone: document.getElementById('editMemberPhone').value,
+                membershipType: document.getElementById('editMembershipType').value,
+                monthlyFee: parseInt(document.getElementById('editMonthlyFee').value),
+                emergencyContact: document.getElementById('editEmergencyContact').value,
+                fingerprintId: document.getElementById('editMemberFingerprintId').value ? parseInt(document.getElementById('editMemberFingerprintId').value) : null,
+            };
+
+            // Only include branchId in updateData if the user is an admin or if it's the manager's current branch
+            if (currentUser.role === 'admin') {
+                updateData.branchId = branchId;
+            } else if (currentUser.role === 'manager' && branchId === currentUser.branchId) {
+                 updateData.branchId = branchId;
+            }
+
+
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/members/${memberId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updateData),
+                });
+
+                if (response.ok) {
+                    showAlert('Member updated successfully!', 'success');
+                    closeEditMemberModal();
+                    loadMembers(); // Refresh members list
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Error updating member', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating member:', error);
+                showAlert('Error updating member', 'error');
+            }
+        }
+
+        async function toggleMemberStatus(memberId, isActive) {
+            if (!confirm(`Are you sure you want to ${isActive ? 'activate' : 'deactivate'} this member?`)) {
+                return;
+            }
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/members/${memberId}/toggle-status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ isActive }),
+                });
+
+                if (response.ok) {
+                    showAlert(`Member status updated successfully!`, 'success');
+                    loadMembers(); // Refresh members table
+                    loadDashboard(); // Refresh dashboard to update counts
+                    loadPayments(); // Refresh payments to show non_payable status changes
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Error updating member status', 'error');
+                }
+            } catch (error) {
+                console.error('Error toggling member status:', error);
+                showAlert('Error updating member status', 'error');
+            }
+        }
+
+        async function deleteMember(memberId) {
+            if (!confirm('Are you sure you want to delete this member and all associated data?')) {
+                return;
+            }
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/members/${memberId}`, {
+                    method: 'DELETE',
+                });
+
+                if (response.status === 204) {
+                    showAlert('Member deleted successfully!', 'success');
+                    loadMembers(); // Refresh members list
+                    loadDashboard(); // Refresh dashboard
+                    loadPayments(); // Refresh payments
+                    loadAttendance(); // Refresh attendance
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Error deleting member', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting member:', error);
+                showAlert('Error deleting member', 'error');
+            }
+        }
+
+        async function openPaymentUpdateModal(paymentId) {
+            try {
+                const payment = payments.find(p => p._id === paymentId);
+                if (!payment) {
+                    showAlert('Payment not found.', 'error');
+                    return;
+                }
+
+                document.getElementById('updatePaymentId').value = payment._id;
+                document.getElementById('updatePaymentMemberName').value = payment.memberId?.name || 'N/A';
+                document.getElementById('updatePaymentAmount').value = payment.amount;
+                document.getElementById('updatePaymentMonth').value = payment.paymentMonth;
+                document.getElementById('updatePaymentStatus').value = payment.paymentStatus;
+                document.getElementById('updatePaymentMethod').value = payment.paymentMethod || '';
+
+                // Show/hide payment method selection based on initial status
+                const paymentMethodGroup = document.getElementById('paymentMethodGroup');
+                if (payment.paymentStatus === 'paid') {
+                    paymentMethodGroup.style.display = 'flex';
+                    document.getElementById('updatePaymentMethod').setAttribute('required', 'required');
+                } else {
+                    paymentMethodGroup.style.display = 'none';
+                    document.getElementById('updatePaymentMethod').removeAttribute('required');
+                }
+
+                document.getElementById('paymentUpdateModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Error opening payment update modal:', error);
+                showAlert('Error loading payment details', 'error');
+            }
+        }
+
+        function closePaymentUpdateModal() {
+            document.getElementById('paymentUpdateModal').style.display = 'none';
+            document.getElementById('paymentUpdateForm').reset();
+            document.getElementById('paymentMethodGroup').style.display = 'none'; // Hide on close
+        }
+
+        async function updatePayment() {
+            const paymentId = document.getElementById('updatePaymentId').value;
+            const newStatus = document.getElementById('updatePaymentStatus').value;
+            const paymentMethod = document.getElementById('updatePaymentMethod').value; // Get payment method
+
+            // Validation for payment method if status is 'paid'
+            if (newStatus === 'paid' && !paymentMethod) {
+                showAlert('Please select a payment method.', 'error');
+                return;
+            }
+
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/payments/${paymentId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        paymentStatus: newStatus,
+                        paymentMethod: newStatus === 'paid' ? paymentMethod : undefined // Only send method if paid
+                    }),
+                });
+
+                if (response.ok) {
+                    showAlert('Payment status updated successfully!', 'success');
+                    closePaymentUpdateModal();
+                    loadPayments(); // Refresh payments table
+                    loadDashboard(); // Refresh dashboard for revenue updates
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Error updating payment status', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating payment status:', error);
+                showAlert('Error updating payment status', 'error');
+            }
+        }
+        // Function to generate and display receipt
+async function generateReceipt(paymentId) {
+    try {
+        // Find the payment data
+        const payment = payments.find(p => p._id === paymentId);
+        if (!payment) {
+            showAlert('Payment not found.', 'error');
+            return;
+        }
+        
+        // Create receipt content
+        const receiptContent = createReceiptContent(payment);
+        
+        // Show receipt modal
+        showReceiptModal(receiptContent, payment);
+    } catch (error) {
+        console.error('Error generating receipt:', error);
+        showAlert('Error generating receipt', 'error');
+    }
+}
+
+// Function to create receipt content
+function createReceiptContent(payment) {
+    const formattedDate = new Date().toLocaleDateString();
+    const paymentDate = payment.paymentDate ? 
+        new Date(payment.paymentDate).toLocaleDateString() : 'N/A';
+    
+    return {
+        title: 'Payment Receipt',
+        gymName: 'Passion Fitness Center',
+        address: '123 Fitness Street, City, State',
+        contact: '+91 9876543210',
+        receiptNo: `RCPT-${payment._id.slice(-6).toUpperCase()}`,
+        date: formattedDate,
+        paymentDate: paymentDate,
+        memberName: payment.memberId?.name || 'N/A',
+        memberId: payment.memberId?._id.slice(-6).toUpperCase() || 'N/A',
+        branch: payment.branchId?.name || 'N/A',
+        amount: `₹${payment.amount.toLocaleString()}`,
+        paymentMonth: payment.paymentMonth,
+        paymentMethod: payment.paymentMethod || 'N/A',
+        paymentStatus: payment.paymentStatus,
+        thanksMessage: 'Thank you for your payment!'
+    };
+}
+
+// Function to show receipt modal
+// Function to show receipt modal with phone options
+function showReceiptModal(receiptContent, payment) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    // Get member's phone number for display
+    const memberPhone = payment.memberId?.phone || 'Not available';
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close-button" onclick="this.parentElement.parentElement.remove()">&times;</span>
+            <h2 class="section-title">Payment Receipt</h2>
+            <div id="receiptPreview" style="padding: 20px; border: 1px solid #ddd; margin-bottom: 20px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2>${receiptContent.gymName}</h2>
+                    <p>${receiptContent.address}</p>
+                    <p>${receiptContent.contact}</p>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                    <div>
+                        <p><strong>Receipt No:</strong> ${receiptContent.receiptNo}</p>
+                        <p><strong>Date:</strong> ${receiptContent.date}</p>
+                    </div>
+                    <div>
+                        <p><strong>Payment Date:</strong> ${receiptContent.paymentDate}</p>
+                    </div>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Member Name:</strong></td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${receiptContent.memberName}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Member ID:</strong></td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${receiptContent.memberId}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Phone:</strong></td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${memberPhone}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Branch:</strong></td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${receiptContent.branch}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Amount:</strong></td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${receiptContent.amount}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Payment Month:</strong></td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${receiptContent.paymentMonth}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Payment Method:</strong></td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${receiptContent.paymentMethod}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Status:</strong></td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${receiptContent.paymentStatus}</td>
+                    </tr>
+                </table>
+                <div style="text-align: center; margin-top: 30px;">
+                    <p>${receiptContent.thanksMessage}</p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="downloadReceiptPdf('${payment._id}')">Download PDF</button>
+                ${memberPhone !== 'Not available' ? 
+                    `<button class="btn btn-success" onclick="shareViaWhatsApp('${payment._id}')">
+                        Send to Member's WhatsApp
+                    </button>` : 
+                    `<button class="btn btn-success" onclick="shareViaWhatsApp('${payment._id}')" disabled title="No phone number available">
+                        Send to WhatsApp
+                    </button>`
+                }
+                <button class="btn btn-info" onclick="shareToAnyWhatsApp('${payment._id}')">
+                    Send to Another Number
+                </button>
+            </div>
+            ${memberPhone === 'Not available' ? 
+                `<p style="text-align: center; color: #e53e3e; margin-top: 10px;">
+                    No phone number available for this member
+                </p>` : ''
+            }
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Additional function to share to any number (manual entry)
+function shareToAnyWhatsApp(paymentId) {
+    const payment = payments.find(p => p._id === paymentId);
+    if (!payment) return;
+    
+    const receiptContent = createReceiptContent(payment);
+    
+    // Create message text
+    const message = `*${receiptContent.gymName} - Payment Receipt*%0A%0A` +
+                   `*Receipt No:* ${receContent.receiptNo}%0A` +
+                   `*Date:* ${receiptContent.date}%0A` +
+                   `*Member:* ${receiptContent.memberName}%0A` +
+                   `*Amount:* ${receiptContent.amount}%0A` +
+                   `*Payment Month:* ${receiptContent.paymentMonth}%0A` +
+                   `*Payment Method:* ${receiptContent.paymentMethod}%0A%0A` +
+                   `Thank you for your payment!`;
+    
+    // Open without pre-filled number (user can enter any number)
+    const whatsappUrl = `https://wa.me/?text=${message}`;
+    window.open(whatsappUrl, '_blank');
+}
+
+// Function to download PDF receipt
+function downloadReceiptPdf(paymentId) {
+    const payment = payments.find(p => p._id === paymentId);
+    if (!payment) return;
+    
+    const receiptContent = createReceiptContent(payment);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // Add gym logo/header
+    doc.setFontSize(20);
+    doc.setTextColor(40, 40, 40);
+    doc.text(receiptContent.gymName, 105, 20, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(receiptContent.address, 105, 28, { align: 'center' });
+    doc.text(receiptContent.contact, 105, 34, { align: 'center' });
+    
+    // Add receipt details
+    doc.setFontSize(16);
+    doc.setTextColor(40, 40, 40);
+    doc.text(receiptContent.title, 105, 50, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Receipt No: ${receiptContent.receiptNo}`, 20, 65);
+    doc.text(`Date: ${receiptContent.date}`, 20, 72);
+    doc.text(`Payment Date: ${receiptContent.paymentDate}`, 120, 65);
+    
+    // Add member details
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 80, 190, 80);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(40, 40, 40);
+    doc.text('Member Details', 20, 90);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Name: ${receiptContent.memberName}`, 20, 100);
+    doc.text(`Member ID: ${receiptContent.memberId}`, 20, 107);
+    doc.text(`Branch: ${receiptContent.branch}`, 20, 114);
+    
+    // Add payment details
+    doc.setFontSize(12);
+    doc.setTextColor(40, 40, 40);
+    doc.text('Payment Details', 20, 130);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Amount: ${receiptContent.amount}`, 20, 140);
+    doc.text(`Payment Month: ${receiptContent.paymentMonth}`, 20, 147);
+    doc.text(`Payment Method: ${receiptContent.paymentMethod}`, 20, 154);
+    doc.text(`Status: ${receiptContent.paymentStatus}`, 20, 161);
+    
+    // Add thank you message
+    doc.setFontSize(12);
+    doc.setTextColor(40, 40, 40);
+    doc.text(receiptContent.thanksMessage, 105, 180, { align: 'center' });
+    
+    // Save the PDF
+    doc.save(`receipt-${receiptContent.receiptNo}.pdf`);
+}
+
+// Function to share via WhatsApp
+// Function to share via WhatsApp using member's phone number
+function shareViaWhatsApp(paymentId) {
+    const payment = payments.find(p => p._id === paymentId);
+    if (!payment) return;
+    
+    const receiptContent = createReceiptContent(payment);
+    
+    // Get member's phone number (remove any non-digit characters)
+    const memberPhone = payment.memberId?.phone ? 
+        payment.memberId.phone.replace(/\D/g, '') : null;
+    
+    // Create message text
+    const message = `*${receiptContent.gymName} - Payment Receipt*%0A%0A` +
+                   `*Receipt No:* ${receiptContent.receiptNo}%0A` +
+                   `*Date:* ${receiptContent.date}%0A` +
+                   `*Member:* ${receiptContent.memberName}%0A` +
+                   `*Amount:* ${receiptContent.amount}%0A` +
+                   `*Payment Month:* ${receiptContent.paymentMonth}%0A` +
+                   `*Payment Method:* ${receiptContent.paymentMethod}%0A%0A` +
+                   `Thank you for your payment!`;
+    
+    // Create WhatsApp share URL
+    let whatsappUrl;
+    if (memberPhone) {
+        // If we have a phone number, use it directly
+        whatsappUrl = `https://wa.me/${memberPhone}?text=${message}`;
+    } else {
+        // Fallback: open without pre-filled number
+        whatsappUrl = `https://wa.me/?text=${message}`;
+    }
+    
+    // Open in new window
+    window.open(whatsappUrl, '_blank');
+}
+
+        async function deletePayment(paymentId) {
+            if (!confirm('Are you sure you want to delete this payment record?')) {
+                return;
+            }
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/payments/${paymentId}`, {
+                    method: 'DELETE',
+                });
+
+                if (response.status === 204) {
+                    showAlert('Payment deleted successfully!', 'success');
+                    loadPayments(); // Refresh payments list
+                    loadDashboard(); // Refresh dashboard
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Error deleting payment', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting payment:', error);
+                showAlert('Error deleting payment', 'error');
+            }
+        }
+
+
+        // Populate member select dropdown for attendance check-in
+        function populateMemberSelect() {
+            const select = document.getElementById('attendanceMemberSelect');
+            select.innerHTML = '<option value="">Select Member to Check-in</option>'; // Default option
+
+            // Filter for active members only for check-in
+            const activeMembers = members.filter(member => member.isActive);
+
+            activeMembers.forEach(member => {
+                const option = document.createElement('option');
+                option.value = member._id;
+                option.textContent = `${member.name} (${member.branchId?.name || 'N/A'})`;
+                select.appendChild(option);
+            });
+        }
+
+        async function checkInMember() {
+            const memberId = document.getElementById('attendanceMemberSelect').value;
+            if (!memberId) {
+                showAlert('Please select a member to check-in.', 'error');
+                return;
+            }
+
+            let branchId = document.getElementById('attendanceCheckinBranch').value;
+            // If manager, enforce their assigned branch
+            if (currentUser.role === 'manager' && currentUser.branchId) {
+                branchId = currentUser.branchId;
+            } else if (currentUser.role === 'admin' && !branchId) {
+                showAlert('As Admin, please select a branch for check-in', 'error');
+                return;
+            }
+
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/attendance/checkin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ memberId, branchId }),
+                });
+
+                if (response.ok) {
+                    showAlert('Member checked in successfully!', 'success');
+                    document.getElementById('attendanceMemberSelect').value = ''; // Clear selection
+                    loadAttendance(); // Refresh attendance list
+                    loadDashboard(); // Update today's check-ins
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || error.message || 'Error checking in member', 'error');
+                }
+            } catch (error) {
+                console.error('Error checking in member:', error);
+                showAlert('Error checking in member', 'error');
+            }
+        }
+
+        async function checkOutMember(attendanceId) {
+            if (!confirm('Are you sure you want to check-out this member?')) {
+                return;
+            }
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/attendance/${attendanceId}/checkout`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (response.ok) {
+                    showAlert('Member checked out successfully!', 'success');
+                    loadAttendance(); // Refresh attendance list to show updated status
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Error checking out member', 'error');
+                }
+            } catch (error) {
+                console.error('Error checking out member:', error);
+                showAlert('Error checking out member', 'error');
+            }
+        }
+
+        async function openMemberAttendanceModal(memberId, memberName) {
+            document.getElementById('memberAttendanceTitle').textContent = `Attendance for ${memberName}`;
+            const tableContainer = document.getElementById('memberAttendanceTable');
+            tableContainer.innerHTML = '<div class="loading">Loading attendance records...</div>';
+            document.getElementById('memberAttendanceModal').style.display = 'flex';
+
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/members/${memberId}/attendance`);
+                const memberAttendance = await response.json();
+                displayMemberAttendanceTable(memberAttendance);
+            } catch (error) {
+                console.error('Error loading member attendance:', error);
+                showAlert('Error loading member attendance', 'error');
+                tableContainer.innerHTML = '<div class="loading">Error loading attendance records.</div>';
+            }
+        }
+
+        function closeMemberAttendanceModal() {
+            document.getElementById('memberAttendanceModal').style.display = 'none';
+        }
+
+        function displayMemberAttendanceTable(memberAttendance) {
+            const tableContainer = document.getElementById('memberAttendanceTable');
+            if (memberAttendance.length === 0) {
+                tableContainer.innerHTML = '<p>No attendance records found for this member.</p>';
+                return;
+            }
+            tableContainer.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Duration</th>
+                            <th>Branch</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${memberAttendance.map(record => `
+                            <tr>
+                                <td>${new Date(record.checkInTime).toLocaleString()}</td>
+                                <td>${record.checkOutTime ? new Date(record.checkOutTime).toLocaleString() : 'Not checked out'}</td>
+                                <td>${record.duration ? `${record.duration} mins` : 'N/A'}</td>
+                                <td>${record.branchId?.name || 'N/A'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // NEW: Add Expense Function
+        async function addExpense() {
+            const reason = document.getElementById('expenseReason').value;
+            const amount = parseFloat(document.getElementById('expenseAmount').value);
+            let branchId = document.getElementById('expenseBranchSelect').value;
+
+            if (!reason || isNaN(amount) || amount <= 0) {
+                showAlert('Please enter a valid reason and amount for the expense.', 'error');
+                return;
+            }
+
+            // If manager, enforce their assigned branch
+            if (currentUser.role === 'manager' && currentUser.branchId) {
+                branchId = currentUser.branchId;
+            } else if (currentUser.role === 'admin' && !branchId) {
+                // Admin can add general expenses without a branch, or select one
+                // If branchId is empty, it will be added as a general expense
+            }
+
+            const expenseData = {
+                reason,
+                amount,
+                branchId: branchId || undefined // Send undefined if no branch selected by admin
+            };
+
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/expenses`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(expenseData),
+                });
+
+                if (response.ok) {
+                    showAlert('Expense added successfully!', 'success');
+                    document.getElementById('expenseReason').value = '';
+                    document.getElementById('expenseAmount').value = '';
+                    // Reset branch select only if admin, manager's is disabled
+                    if (currentUser.role === 'admin') {
+                        document.getElementById('expenseBranchSelect').value = '';
+                    }
+                    loadExpenses();
+                    loadDashboard(); // Refresh dashboard to update expense totals
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Error adding expense', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding expense:', error);
+                showAlert('Error adding expense', 'error');
+            }
+        }
+
+
+        // Function to load members for the bulk payment update section
+        async function loadMembersForBulkUpdate() {
+            const memberSelectionList = document.getElementById('memberSelectionList');
+            memberSelectionList.innerHTML = '<div class="loading">Loading members for bulk update...</div>';
+            try {
+                // Fetch all members (filtered by branch if manager)
+                let url = `${API_BASE}/members?`;
+                if (currentUser.role === 'manager' && currentUser.branchId) {
+                    url += `branchId=${currentUser.branchId}&`;
+                }
+                url = url.slice(0, -1); // Remove trailing '&'
+
+                const response = await authenticatedFetch(url);
+                allMembersForBulkUpdate = await response.json(); // Store all members globally
+
+                memberSelectionList.innerHTML = ''; // Clear loading message
+                if (allMembersForBulkUpdate.length === 0) {
+                    memberSelectionList.innerHTML = '<div class="loading">No members found for bulk update.</div>';
+                    document.getElementById('selectAllMembersCheckbox').checked = false;
+                    document.getElementById('selectAllMembersCheckbox').disabled = true;
+                    return;
+                }
+
+                document.getElementById('selectAllMembersCheckbox').disabled = false;
+                document.getElementById('selectAllMembersCheckbox').checked = true; // Default to all selected
+
+                allMembersForBulkUpdate.forEach(member => {
+                    const memberDiv = document.createElement('div');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `bulk-member-${member._id}`;
+                    checkbox.value = member._id;
+                    checkbox.className = 'bulk-member-checkbox'; // Add a class for easy selection
+                    checkbox.checked = true; // Default to checked
+
+                    const label = document.createElement('label');
+                    label.htmlFor = `bulk-member-${member._id}`;
+                    label.textContent = `${member.name} (${member.branchId?.name || 'N/A'}) - Monthly Fee: ₹${member.monthlyFee}`;
+
+                    memberDiv.appendChild(checkbox);
+                    memberDiv.appendChild(label);
+                    memberSelectionList.appendChild(memberDiv);
+                });
+            } catch (error) {
+                console.error('Error loading members for bulk update:', error);
+                showAlert('Error loading members for bulk update', 'error');
+                memberSelectionList.innerHTML = '<div class="loading">Error loading members for bulk update.</div>';
+            }
+        }
+
+        // Function to perform the bulk payment update
+        async function performBulkPaymentUpdate() {
+            const month = document.getElementById('bulkUpdateMonthSelect').value;
+            const newStatus = document.querySelector('input[name="bulkStatus"]:checked').value;
+
+            if (!month) {
+                showAlert('Please select a month for bulk update.', 'error');
+                return;
+            }
+
+            const selectedMemberIds = Array.from(document.querySelectorAll('.bulk-member-checkbox:checked')).map(cb => cb.value);
+            const allMemberIdsInList = allMembersForBulkUpdate.map(member => member._id);
+            const excludedMemberIds = allMemberIdsInList.filter(id => !selectedMemberIds.includes(id));
+
+            if (selectedMemberIds.length === 0 && excludedMemberIds.length === allMemberIdsInList.length) {
+                showAlert('No members selected for bulk update.', 'error');
+                return;
+            }
+
+            const payload = {
+                month: month,
+                newStatus: newStatus
+            };
+
+            // Optimize payload: send `memberIdsToExclude` if most members are selected, otherwise send `memberIdsToInclude`
+            if (selectedMemberIds.length > allMemberIdsInList.length / 2) {
+                payload.memberIdsToExclude = excludedMemberIds;
+            } else {
+                payload.memberIdsToInclude = selectedMemberIds;
+            }
+
+            if (!confirm(`Are you sure you want to set the payment status for ${selectedMemberIds.length} members to '${newStatus}' for month ${month}?`)) {
+                return;
+            }
+
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/payments/bulk-update-status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showAlert(result.message, 'success');
+                    loadPayments(); // Refresh payments table
+                    loadDashboard(); // Refresh dashboard
+                } else {
+                    const errorData = await response.json();
+                    showAlert(errorData.message || 'Error performing bulk update', 'error');
+                }
+            } catch (error) {
+                console.error('Error performing bulk update:', error);
+                showAlert('An error occurred during bulk update', 'error');
+            }
+        }
+
+
+        // Refreshes data periodically (every 30 seconds) if a user is logged in
+        setInterval(() => {
+            if (currentUser.username) { // Only refresh data if a user is currently logged in
+                // Only refresh data for the currently active tab to avoid unnecessary API calls
+                const activeTab = document.querySelector('.main-content-tab-content.active');
+                if (activeTab) {
+                    if (activeTab.id === 'dashboard-section') {
+                        loadDashboard();
+                    } else if (activeTab.id === 'members-section') {
+                        loadMembers();
+                    } else if (activeTab.id === 'payments-section') {
+                        loadPayments();
+                        loadMembersForBulkUpdate(); // Also refresh bulk update list
+                    } else if (activeTab.id === 'attendance-section') {
+                        loadAttendance();
+                    } else if (activeTab.id === 'expenses-section') { // NEW
+                        loadExpenses(); // NEW
+                    }
+                }
+            }
+        }, 30000);
+        
+    </script>
+</body>
+</html>
