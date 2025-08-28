@@ -813,6 +813,43 @@ app.get('/api/members/:memberId/attendance', authorizeUser(['admin', 'manager'])
     res.status(500).json({ error: error.message });
   }
 });
+app.post('/api/attendance/fingerprint', authorizeUser(['admin', 'manager', 'device']), async (req, res) => {
+  try {
+    const { fingerprintId } = req.body;
+    const userRole = req.user.role;
+    const userBranchId = req.user.branchId;
+
+    const member = await Member.findOne({ fingerprintId: fingerprintId });
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    if (userRole === 'manager' && userBranchId && member.branchId.toString() !== userBranchId.toString()) {
+      return res.status(403).json({ message: "Forbidden: Not your branch member" });
+    }
+
+    let attendance = await Attendance.findOne({ memberId: member._id, checkOutTime: { $exists: false } });
+
+    if (attendance) {
+      // Check-out
+      attendance.checkOutTime = new Date();
+      const durationMs = attendance.checkOutTime.getTime() - attendance.checkInTime.getTime();
+      attendance.duration = Math.round(durationMs / (1000 * 60));
+      await attendance.save();
+      return res.json({ memberName: member.name, status: "Check-out" });
+    } else {
+      // Check-in
+      attendance = new Attendance({ memberId: member._id, branchId: member.branchId });
+      await attendance.save();
+      return res.json({ memberName: member.name, status: "Check-in" });
+    }
+  } catch (error) {
+    console.error("Error in fingerprint attendance:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
 
 
 // Check-in member - PROTECTED (Admins and Managers)
